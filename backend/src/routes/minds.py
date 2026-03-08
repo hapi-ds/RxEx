@@ -22,6 +22,7 @@ from ..exceptions import (
     MindError,
     MindNotFoundError,
     MindValidationError,
+    RateLimitError,
 )
 from ..schemas.minds import (
     ErrorResponse,
@@ -119,6 +120,22 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
         request_id=request_id, error_type="InternalError", message="An unexpected error occurred", details={}
     )
     return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error_response.model_dump(mode="json"))
+
+
+async def rate_limit_handler(request: Request, exc: RateLimitError) -> JSONResponse:
+    """Handle RateLimitError exceptions (HTTP 429)."""
+    request_id = generate_request_id()
+    error_response = create_error_response(
+        request_id=request_id,
+        error_type="RateLimitError",
+        message="Rate limit exceeded",
+        details={"retry_after": 60, "limit": 100, "window": "1 minute"},
+    )
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content=error_response.model_dump(mode="json"),
+        headers={"Retry-After": "60"},
+    )
 
 
 # API Endpoints - IMPORTANT: Specific paths (/bulk) must come BEFORE parameterized paths (/{uuid})

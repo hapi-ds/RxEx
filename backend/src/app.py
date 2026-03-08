@@ -10,6 +10,7 @@ from src.exceptions import (
     MindError,
     MindNotFoundError,
     MindValidationError,
+    RateLimitError,
 )
 from src.routes.minds import (
     generic_exception_handler,
@@ -17,8 +18,11 @@ from src.routes.minds import (
     mind_error_handler,
     mind_not_found_handler,
     mind_validation_handler,
-    router as minds_router,
     value_error_handler,
+    rate_limit_handler,
+)
+from src.routes.minds import (
+    router as minds_router,
 )
 from src.routes.posts import PostRouter
 from src.routes.users import UserRouter
@@ -105,6 +109,7 @@ app.include_router(websocket_router, tags=["WebSocket"])
 app.add_exception_handler(MindNotFoundError, mind_not_found_handler)
 app.add_exception_handler(MindValidationError, mind_validation_handler)
 app.add_exception_handler(MindDatabaseError, mind_database_handler)
+app.add_exception_handler(RateLimitError, rate_limit_handler)
 app.add_exception_handler(MindError, mind_error_handler)
 app.add_exception_handler(ValueError, value_error_handler)
 app.add_exception_handler(Exception, generic_exception_handler)

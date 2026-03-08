@@ -45,3 +45,9 @@ class MindRelationshipError(MindError):
     """Raised when a relationship operation fails."""
 
     pass
+
+
+class RateLimitError(MindError):
+    """Raised when rate limits are exceeded."""
+
+    pass

@@ -40,7 +40,7 @@ def create_mind_schema(driver: Optional[Driver] = None) -> None:
             # Note: UUID is NOT unique because we maintain version history
             # Multiple nodes can have the same UUID (different versions)
             # Each node has a unique internal Neo4j ID
-            
+
             # Index on UUID for fast lookups
             session.run("""
                 CREATE INDEX mind_uuid_idx IF NOT EXISTS

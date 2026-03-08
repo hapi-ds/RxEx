@@ -2027,7 +2027,7 @@ class TestMindService:
         # Test 1: Get all relationships for node2 (both directions)
         relationships = await service.get_relationships(node2.uuid, direction="both")
         assert len(relationships) == 3
-        
+
         # Verify relationship types and directions
         rel_types = {(r.relationship_type, str(r.source_uuid), str(r.target_uuid)) for r in relationships}
         assert ("contains", str(node1.uuid), str(node2.uuid)) in rel_types
@@ -2333,7 +2333,7 @@ class TestMindServiceQueryMinds:
         # Test 1: Query all nodes (no filters)
         filters = MindQueryFilters()
         result = await service.query_minds(filters)
-        
+
         assert result.total == 3  # 3 unique UUIDs
         assert len(result.items) == 3
         assert result.page == 1
@@ -2349,7 +2349,7 @@ class TestMindServiceQueryMinds:
         # Test 2: Filter by mind_type (Requirements 4.4, 11.1)
         filters = MindQueryFilters(mind_type="project")
         result = await service.query_minds(filters)
-        
+
         assert result.total == 2  # 2 projects
         assert len(result.items) == 2
         for item in result.items:
@@ -2358,7 +2358,7 @@ class TestMindServiceQueryMinds:
         # Test 3: Filter by creator (Requirement 11.3)
         filters = MindQueryFilters(creator="creator1@example.com")
         result = await service.query_minds(filters)
-        
+
         assert result.total == 2  # 2 nodes by creator1
         assert len(result.items) == 2
         for item in result.items:
@@ -2370,7 +2370,7 @@ class TestMindServiceQueryMinds:
             creator="creator1@example.com"
         )
         result = await service.query_minds(filters)
-        
+
         assert result.total == 2  # 2 projects by creator1
         assert len(result.items) == 2
         for item in result.items:
@@ -2380,7 +2380,7 @@ class TestMindServiceQueryMinds:
         # Test 5: Sort by title ascending (Requirement 11.6)
         filters = MindQueryFilters(sort_by="title", sort_order="asc")
         result = await service.query_minds(filters)
-        
+
         assert len(result.items) == 3
         titles = [item.title for item in result.items]
         assert titles == sorted(titles)  # Verify ascending order
@@ -2388,7 +2388,7 @@ class TestMindServiceQueryMinds:
         # Test 6: Sort by title descending (Requirement 11.6)
         filters = MindQueryFilters(sort_by="title", sort_order="desc")
         result = await service.query_minds(filters)
-        
+
         assert len(result.items) == 3
         titles = [item.title for item in result.items]
         assert titles == sorted(titles, reverse=True)  # Verify descending order
@@ -2396,7 +2396,7 @@ class TestMindServiceQueryMinds:
         # Test 7: Pagination (Requirement 11.7)
         filters = MindQueryFilters(page=1, page_size=2, sort_by="title", sort_order="asc")
         result = await service.query_minds(filters)
-        
+
         assert result.total == 3
         assert len(result.items) == 2  # First page with 2 items
         assert result.page == 1
@@ -2406,7 +2406,7 @@ class TestMindServiceQueryMinds:
         # Get second page
         filters = MindQueryFilters(page=2, page_size=2, sort_by="title", sort_order="asc")
         result = await service.query_minds(filters)
-        
+
         assert result.total == 3
         assert len(result.items) == 1  # Second page with 1 item
         assert result.page == 2
@@ -2416,12 +2416,12 @@ class TestMindServiceQueryMinds:
         # Test 8: Date range filtering (Requirement 11.4)
         # Query for nodes updated after a time before all nodes were created
         very_old_time = datetime.now(timezone.utc) - timedelta(days=1)
-        
+
         filters = MindQueryFilters(
             updated_after=very_old_time
         )
         result = await service.query_minds(filters)
-        
+
         # Should get all 3 nodes since they were all created recently
         assert result.total == 3
 
@@ -2432,7 +2432,7 @@ class TestMindServiceQueryMinds:
 
         filters = MindQueryFilters(status=StatusEnum.READY)
         result = await service.query_minds(filters)
-        
+
         assert result.total == 1
         assert len(result.items) == 1
         assert result.items[0].uuid == node2.uuid
@@ -2485,7 +2485,7 @@ class TestMindServiceQueryMinds:
         # gets through, the service should catch it
         # Note: Pydantic validation in MindQueryFilters should prevent this
         # but we test the service layer validation as well
-        
+
         # Create a filter with an invalid mind_type by bypassing validation
         filters = MindQueryFilters.model_construct(mind_type="invalid_type")
 
@@ -2549,7 +2549,7 @@ class TestMindServiceQueryMinds:
 
         Validates date range filtering (Requirement 11.4).
         """
-        from datetime import datetime, timedelta, timezone
+        from datetime import timedelta
 
         from src.schemas.minds import MindQueryFilters
 

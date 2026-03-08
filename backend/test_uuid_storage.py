@@ -1,12 +1,14 @@
 import asyncio
-from uuid import uuid4
-from src.services.mind_service import MindService
-from src.schemas.minds import MindCreate
+
 from neontology import GraphConnection
+
+from src.schemas.minds import MindCreate
+from src.services.mind_service import MindService
+
 
 async def test():
     service = MindService()
-    
+
     # Create a node
     mind_data = MindCreate(
         mind_type="project",
@@ -17,21 +19,21 @@ async def test():
             "end_date": "2024-12-31",
         },
     )
-    
+
     created = await service.create_mind(mind_data)
     print(f"Created UUID: {created.uuid}")
     print(f"UUID type: {type(created.uuid)}")
-    
+
     # Query the database directly
     gc = GraphConnection()
-    
+
     # Try different UUID formats
     queries = [
         ("String UUID", "MATCH (n:Mind) WHERE n.uuid = $uuid RETURN n", str(created.uuid)),
         ("UUID object", "MATCH (n:Mind) WHERE n.uuid = $uuid RETURN n", created.uuid),
         ("All nodes", "MATCH (n:Mind) RETURN n.uuid, n.title LIMIT 5", None),
     ]
-    
+
     for name, cypher, param in queries:
         print(f"\n{name}:")
         try:
