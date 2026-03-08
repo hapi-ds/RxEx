@@ -16,11 +16,13 @@ def create_mind_schema(driver: Optional[Driver] = None) -> None:
         driver: Neo4j driver instance. If None, will get from neontology.
 
     Creates:
-    - Unique constraint on Mind.uuid
+    - Index on Mind.uuid for fast lookups (NOT unique to support version history)
     - Index on Mind.status for filtering
     - Index on Mind.creator for filtering
     - Index on Mind.updated_at for sorting and range queries
-    - Composite index on Mind type labels and status
+    
+    Note: UUID is not unique because version history requires multiple nodes
+    with the same UUID (different versions). Each node has a unique Neo4j internal ID.
     """
     if driver is None:
         from neontology import Neo4jConfig, init_neontology
@@ -35,10 +37,14 @@ def create_mind_schema(driver: Optional[Driver] = None) -> None:
         init_neontology(config)
     else:
         with driver.session() as session:
-            # Unique constraint on UUID
+            # Note: UUID is NOT unique because we maintain version history
+            # Multiple nodes can have the same UUID (different versions)
+            # Each node has a unique internal Neo4j ID
+            
+            # Index on UUID for fast lookups
             session.run("""
-                CREATE CONSTRAINT mind_uuid_unique IF NOT EXISTS
-                FOR (m:Mind) REQUIRE m.uuid IS UNIQUE
+                CREATE INDEX mind_uuid_idx IF NOT EXISTS
+                FOR (m:Mind) ON (m.uuid)
             """)
 
             # Index on status for filtering
@@ -60,7 +66,7 @@ def create_mind_schema(driver: Optional[Driver] = None) -> None:
             """)
 
         print("✓ Neo4j schema created successfully")
-        print("  - Unique constraint: mind_uuid_unique")
+        print("  - Index: mind_uuid_idx")
         print("  - Index: mind_status_idx")
         print("  - Index: mind_creator_idx")
         print("  - Index: mind_updated_at_idx")
@@ -88,12 +94,10 @@ def drop_mind_schema(driver: Optional[Driver] = None) -> None:
     else:
         with driver.session() as session:
             # Drop indexes
+            session.run("DROP INDEX mind_uuid_idx IF EXISTS")
             session.run("DROP INDEX mind_status_idx IF EXISTS")
             session.run("DROP INDEX mind_creator_idx IF EXISTS")
             session.run("DROP INDEX mind_updated_at_idx IF EXISTS")
-
-            # Drop constraints
-            session.run("DROP CONSTRAINT mind_uuid_unique IF EXISTS")
 
         print("✓ Neo4j schema dropped successfully")
 

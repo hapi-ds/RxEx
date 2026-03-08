@@ -28,6 +28,7 @@ class StatusEnum(str, Enum):
     DONE = "done"
     ARCHIVED = "archived"
     OBSOLET = "obsolet"
+    DELETED = "deleted"
 
 
 class PriorityEnum(str, Enum):

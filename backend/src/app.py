@@ -5,6 +5,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.database.database import initiate_database
+from src.exceptions import (
+    MindDatabaseError,
+    MindError,
+    MindNotFoundError,
+    MindValidationError,
+)
+from src.routes.minds import (
+    generic_exception_handler,
+    mind_database_handler,
+    mind_error_handler,
+    mind_not_found_handler,
+    mind_validation_handler,
+    router as minds_router,
+    value_error_handler,
+)
 from src.routes.posts import PostRouter
 from src.routes.users import UserRouter
 from src.websocket.routes import router as websocket_router
@@ -83,4 +98,13 @@ async def read_root():
 
 app.include_router(UserRouter, tags=["Administrator"], prefix="/users")
 app.include_router(PostRouter, tags=["Posts"], prefix="/posts")
+app.include_router(minds_router, tags=["Minds"])
 app.include_router(websocket_router, tags=["WebSocket"])
+
+# Register exception handlers for Mind system
+app.add_exception_handler(MindNotFoundError, mind_not_found_handler)
+app.add_exception_handler(MindValidationError, mind_validation_handler)
+app.add_exception_handler(MindDatabaseError, mind_database_handler)
+app.add_exception_handler(MindError, mind_error_handler)
+app.add_exception_handler(ValueError, value_error_handler)
+app.add_exception_handler(Exception, generic_exception_handler)

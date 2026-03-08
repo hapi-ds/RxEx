@@ -11,7 +11,7 @@ ORM integration and Pydantic for attribute validation.
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from neontology import BaseNode
+from neontology import BaseNode, BaseRelationship
 from pydantic import Field
 
 from .enums import StatusEnum
@@ -74,3 +74,20 @@ class BaseMind(BaseNode):
         max_length=1000,
         description="Optional detailed description"
     )
+
+
+class Previous(BaseRelationship):
+    """
+    Relationship linking a Mind node to its previous version.
+
+    This relationship enables version history tracking by creating a chain
+    from newer versions to older versions. Each update creates a new Mind
+    node that links to its predecessor via this relationship.
+
+    **Validates: Requirements 5.4**
+    """
+
+    __relationshiptype__: str = "PREVIOUS"
+
+    source: BaseMind
+    target: BaseMind

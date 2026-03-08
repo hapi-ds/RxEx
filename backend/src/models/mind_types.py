@@ -546,12 +546,12 @@ class AcceptanceCriteria(BaseMind):
     AcceptanceCriteria Mind type representing acceptance criteria for a requirement.
 
     Extends BaseMind with acceptance criteria-specific attributes including
-    criteria text, verification method, and status.
+    criteria text, verification method, and verification status.
 
     Attributes:
         criteria_text: Detailed acceptance criteria description
         verification_method: Method used to verify the criteria
-        status: Current status (pending, verified, failed)
+        verification_status: Current verification status (pending, verified, failed)
 
     **Validates: Requirements 2.1, 2.2, 2.3**
     """
@@ -568,10 +568,10 @@ class AcceptanceCriteria(BaseMind):
         min_length=1,
         description="Method used to verify the criteria"
     )
-    status: str = Field(
+    verification_status: str = Field(
         ...,
         min_length=1,
-        description="Current status (pending, verified, failed)"
+        description="Current verification status (pending, verified, failed)"
     )
 
 
