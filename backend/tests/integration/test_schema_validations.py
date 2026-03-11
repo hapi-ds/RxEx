@@ -18,12 +18,12 @@ class TestSchemaValidations:
     """Integration tests for schema validation edge cases."""
 
     def test_mind_create_with_all_valid_types(self):
-        """Test that all 18 mind types can be created."""
+        """Test that all valid mind types can be created."""
         valid_types = [
-            "project", "phase", "task", "milestone", "company", "department",
-            "employee", "email", "knowledge", "user_story", "user_need",
-            "design_input", "design_output", "process_requirement",
-            "work_instruction_requirement", "acceptance_criteria", "risk", "failure"
+            "project", "task", "company", "department",
+            "resource", "email", "knowledge", "requirement",
+            "acceptance_criteria", "risk", "failure", "account",
+            "schedulehistory", "scheduledtask"
         ]
 
         for mind_type in valid_types:

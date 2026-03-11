@@ -18,10 +18,7 @@ from ..models.mind_types import (
     AcceptanceCriteria,
     Company,
     Department,
-    DesignInput,
-    DesignOutput,
     Email,
-    Employee,
     Failure,
     Knowledge,
     Project,
@@ -31,6 +28,7 @@ from ..models.mind_types import (
     Account,
     ScheduleHistory,
     ScheduledTask,
+    Requirement,
 )
 from ..schemas.minds import (
     MindBulkUpdate,
@@ -59,15 +57,13 @@ class MindService:
         "task": Task,
         "company": Company,
         "department": Department,
-        "employee": Employee,
+        "resource": Resource,  # Replaces "employee" - use resource_type=ResourceType.PERSON
         "email": Email,
         "knowledge": Knowledge,
-        "design_input": DesignInput,
-        "design_output": DesignOutput,
+        "requirement": Requirement,  # Consolidated type - use requirement_type field
         "acceptance_criteria": AcceptanceCriteria,
         "risk": Risk,
         "failure": Failure,
-        "resource": Resource,
         "account": Account,
         "schedulehistory": ScheduleHistory,
         "scheduledtask": ScheduledTask,

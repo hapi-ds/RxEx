@@ -13,10 +13,7 @@ from .mind_types import (
     AcceptanceCriteria,
     Company,
     Department,
-    DesignInput,
-    DesignOutput,
     Email,
-    Employee,
     Failure,
     Knowledge,
     Project,
@@ -26,6 +23,7 @@ from .mind_types import (
     Account,
     ScheduleHistory,
     ScheduledTask,
+    Requirement,
 )
 
 __all__ = [
@@ -40,24 +38,15 @@ __all__ = [
     "AcceptanceCriteria",
     "Company",
     "Department",
-    "DesignInput",
-    "DesignOutput",
     "Email",
-    "Employee",
     "Failure",
     "Knowledge",
     "Project",
     "Risk",
     "Task",
-    # Consolidated requirement types (all now use single Requirement class)
-    # UserStory, UserNeed, DesignInput, DesignOutput, ProcessRequirement, WorkInstructionRequirement
-    "Resource",
+    "Requirement",  # Consolidated: UserStory, UserNeed, DesignInput, DesignOutput, ProcessRequirement, WorkInstructionRequirement
+    "Resource",  # Replaces Employee - use resource_type=ResourceType.PERSON
     "Account",
     "ScheduleHistory",
     "ScheduledTask",
 ]
-
-# Import Requirement separately since it's consolidated
-from .mind_types import Requirement
-
-__all__.extend(["Requirement"])

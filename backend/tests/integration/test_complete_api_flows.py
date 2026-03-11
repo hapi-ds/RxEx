@@ -222,16 +222,17 @@ def test_version_history_attribute_preservation():
     
     Validates: Requirements 5.3, 5.6, 5.7, 6.3
     """
-    # Create Mind node
+    # Create Mind node (using resource instead of employee)
     create_data = {
-        "mind_type": "employee",
+        "mind_type": "resource",
         "title": "John Doe",
         "description": "Software Engineer",
         "creator": "hr@example.com",
         "type_specific_attributes": {
             "email": "john.doe@example.com",
-            "role": "Senior Developer",
-            "hire_date": "2024-01-15",
+            "resource_type": "PERSON",
+            "efficiency": 1.0,
+            "daily_rate": 800.0,
         },
     }
 
@@ -239,10 +240,10 @@ def test_version_history_attribute_preservation():
     created_uuid = create_response.json()["uuid"]
     original_creator = create_response.json()["creator"]
 
-    # Update only the role (other attributes should be preserved)
+    # Update only the daily_rate (other attributes should be preserved)
     update_data = {
         "type_specific_attributes": {
-            "role": "Lead Developer",
+            "daily_rate": 900.0,
         },
     }
 
@@ -380,29 +381,30 @@ def test_complex_relationship_graph():
         f"?target_uuid={task_uuids[2]}&relationship_type=depends_on"
     )
 
-    # Create Employees
-    employee_uuids = []
+    # Create Resources (replaces Employees)
+    resource_uuids = []
     for i in range(1, 3):
-        employee_data = {
-            "mind_type": "employee",
+        resource_data = {
+            "mind_type": "resource",
             "title": f"Developer {i}",
             "creator": "hr@example.com",
             "type_specific_attributes": {
                 "email": f"dev{i}@example.com",
-                "role": "Software Engineer",
-                "hire_date": "2024-01-01",
+                "resource_type": "PERSON",
+                "efficiency": 1.0,
+                "daily_rate": 800.0,
             },
         }
-        employee_response = client.post("/api/v1/minds", json=employee_data)
-        employee_uuid = employee_response.json()["uuid"]
-        employee_uuids.append(employee_uuid)
+        resource_response = client.post("/api/v1/minds", json=resource_data)
+        resource_uuid = resource_response.json()["uuid"]
+        resource_uuids.append(resource_uuid)
 
-    # Create ASSIGNED_TO relationships: Tasks -> Employees
+    # Create ASSIGNED_TO relationships: Tasks -> Resources
     for i, task_uuid in enumerate(task_uuids):
-        employee_idx = i % 2
+        resource_idx = i % 2
         client.post(
             f"/api/v1/minds/{task_uuid}/relationships"
-            f"?target_uuid={employee_uuids[employee_idx]}&relationship_type=assigned_to"
+            f"?target_uuid={resource_uuids[resource_idx]}&relationship_type=assigned_to"
         )
 
     # Create Risk and Failure nodes
@@ -966,25 +968,26 @@ def test_end_to_end_project_management_scenario():
             f"?target_uuid={task_uuid}&relationship_type=contains"
         )
 
-    # Step 4: Create employees and assign tasks
+    # Step 4: Create resources and assign tasks
     for i, task_uuid in enumerate(task_uuids):
-        employee_data = {
-            "mind_type": "employee",
+        resource_data = {
+            "mind_type": "resource",
             "title": f"Developer {i+1}",
             "creator": "hr@example.com",
             "type_specific_attributes": {
                 "email": f"dev{i+1}@example.com",
-                "role": "Software Engineer",
-                "hire_date": "2024-01-01",
+                "resource_type": "PERSON",
+                "efficiency": 1.0,
+                "daily_rate": 800.0,
             },
         }
-        employee_response = client.post("/api/v1/minds", json=employee_data)
-        employee_uuid = employee_response.json()["uuid"]
+        resource_response = client.post("/api/v1/minds", json=resource_data)
+        resource_uuid = resource_response.json()["uuid"]
 
-        # Assign task to employee
+        # Assign task to resource
         client.post(
             f"/api/v1/minds/{task_uuid}/relationships"
-            f"?target_uuid={employee_uuid}&relationship_type=assigned_to"
+            f"?target_uuid={resource_uuid}&relationship_type=assigned_to"
         )
 
     # Step 5: Update task progress (simulate work)

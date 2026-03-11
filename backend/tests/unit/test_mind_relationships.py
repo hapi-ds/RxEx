@@ -125,13 +125,14 @@ class TestRelationshipTypes:
         source = await service.create_mind(source_data)
 
         target_data = MindCreate(
-            mind_type="employee",
+            mind_type="resource",
             title="John Doe",
             creator="test@example.com",
             type_specific_attributes={
                 "email": "john.doe@example.com",
-                "role": "Software Engineer",
-                "hire_date": "2023-01-15",
+                "resource_type": "PERSON",
+                "efficiency": 1.0,
+                "daily_rate": 800.0,
             },
         )
         target = await service.create_mind(target_data)

@@ -8,25 +8,26 @@ from datetime import date, datetime
 import pytest
 from pydantic import ValidationError
 
-from src.models.enums import PriorityEnum, ProbabilityEnum, SeverityEnum, StatusEnum
+from src.models.enums import (
+    PriorityEnum,
+    ProbabilityEnum,
+    SeverityEnum,
+    StatusEnum,
+    RequirementType,
+    ResourceType,
+)
 from src.models.mind_types import (
     AcceptanceCriteria,
     Company,
     Department,
-    DesignInput,
-    DesignOutput,
     Email,
-    Employee,
     Failure,
     Knowledge,
-    Milestone,
-    Phase,
-    ProcessRequirement,
     Project,
     Risk,
     Task,
-    UserStory,
-    WorkInstructionRequirement,
+    Requirement,
+    Resource,
 )
 
 
@@ -138,18 +139,19 @@ class TestRisk:
 
 
 
-class TestWorkInstructionRequirement:
-    """Test WorkInstructionRequirement mind type."""
+class TestRequirement:
+    """Test Requirement mind type (consolidated from multiple requirement types)."""
 
-    def test_valid_work_instruction(self):
-        """Test that a valid WorkInstructionRequirement can be created."""
-        instruction = WorkInstructionRequirement(
+    def test_valid_work_instruction_requirement(self):
+        """Test that a valid WorkInstructionRequirement can be created using Requirement."""
+        instruction = Requirement(
             title="Safety Procedure",
             creator="test@example.com",
-            instruction_id="WI-001",
-            procedure="Follow safety checklist before operation",
+            requirement_type=RequirementType.WORK_INSTRUCTION_REQUIREMENT,
+            content="Follow safety checklist before operation",
             safety_critical=True
         )
 
-        assert instruction.instruction_id == "WI-001"
-        assert instruction.procedure == "Follow safety checklist before operation"
+        assert instruction.requirement_type == RequirementType.WORK_INSTRUCTION_REQUIREMENT
+        assert instruction.content == "Follow safety checklist before operation"
+        assert instruction.safety_critical is True

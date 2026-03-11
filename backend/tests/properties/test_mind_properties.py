@@ -25,23 +25,19 @@ def mind_type_strategy(draw):
     return draw(
         st.sampled_from([
             "project",
-            "phase",
             "task",
-            "milestone",
             "company",
             "department",
-            "employee",
+            "resource",  # Replaces employee
             "email",
             "knowledge",
-            "user_story",
-            "user_need",
-            "design_input",
-            "design_output",
-            "process_requirement",
-            "work_instruction_requirement",
+            "requirement",  # Consolidated type
             "acceptance_criteria",
             "risk",
             "failure",
+            "account",
+            "schedulehistory",
+            "scheduledtask",
         ])
     )
 
@@ -58,26 +54,13 @@ def type_specific_attributes_strategy(draw, mind_type: str):
             "end_date": end_date.isoformat(),
             "budget": draw(st.floats(min_value=0, max_value=1000000) | st.none()),
         }
-    elif mind_type == "phase":
-        start_date = draw(st.dates(min_value=datetime(2020, 1, 1).date(), max_value=datetime(2024, 12, 1).date()))
-        end_date = draw(st.dates(min_value=start_date, max_value=datetime(2025, 12, 31).date()))
-        return {
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
-            "phase_number": draw(st.integers(min_value=1, max_value=100)),
-        }
     elif mind_type == "task":
         due_date = draw(st.dates(min_value=datetime(2020, 1, 1).date()) | st.none())
         return {
             "priority": draw(st.sampled_from([p.value for p in PriorityEnum])),
             "assignee": draw(st.emails()),
             "due_date": due_date.isoformat() if due_date is not None else None,
-            "estimated_hours": draw(st.floats(min_value=0.1, max_value=1000) | st.none()),
-        }
-    elif mind_type == "milestone":
-        return {
-            "target_date": draw(st.dates(min_value=datetime(2020, 1, 1).date())).isoformat(),
-            "completion_percentage": draw(st.floats(min_value=0, max_value=100)),
+            "task_type": draw(st.sampled_from(["TASK", "PHASE", "MILESTONE", "WORKPACKAGE"])),
         }
     elif mind_type == "company":
         founded_date = draw(st.dates(min_value=datetime(1800, 1, 1).date()) | st.none())
@@ -91,12 +74,13 @@ def type_specific_attributes_strategy(draw, mind_type: str):
             "department_code": draw(st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")))),
             "manager": draw(st.text(min_size=1, max_size=100) | st.none()),
         }
-    elif mind_type == "employee":
+    elif mind_type == "resource":
+        # Replaces "employee" - Resource with resource_type=PERSON
         return {
-            "email": draw(st.emails()),
-            "role": draw(st.text(min_size=1, max_size=100)),
-            "hire_date": draw(st.dates(min_value=datetime(2000, 1, 1).date(), max_value=datetime.now().date())).isoformat(),
-            "department_id": draw(st.text(min_size=1, max_size=50) | st.none()),
+            "email": draw(st.emails() | st.none()),
+            "efficiency": draw(st.floats(min_value=0.0, max_value=1.0)),
+            "daily_rate": draw(st.floats(min_value=0.0, max_value=10000.0)),
+            "resource_type": draw(st.sampled_from(["PERSON", "GROUP", "EQUIPMENT"])),
         }
     elif mind_type == "email":
         return {
@@ -111,40 +95,17 @@ def type_specific_attributes_strategy(draw, mind_type: str):
             "tags": draw(st.lists(st.text(min_size=1, max_size=50), min_size=1, max_size=10)),  # At least 1 tag
             "content": draw(st.text(min_size=1, max_size=5000)),
         }
-    elif mind_type == "user_story":
+    elif mind_type == "requirement":
+        # Consolidated type for user_story, user_need, design_input, design_output, process_requirement, work_instruction_requirement
         return {
-            "as_a": draw(st.text(min_size=1, max_size=200)),
-            "i_want": draw(st.text(min_size=1, max_size=200)),
-            "so_that": draw(st.text(min_size=1, max_size=200)),
-            "acceptance_criteria_ids": draw(st.lists(st.text(min_size=1, max_size=50), min_size=0, max_size=10)),
-        }
-    elif mind_type == "user_need":
-        return {
-            "need_statement": draw(st.text(min_size=1, max_size=500)),
-            "priority": draw(st.sampled_from([p.value for p in PriorityEnum])),
-        }
-    elif mind_type == "design_input":
-        return {
-            "source": draw(st.text(min_size=1, max_size=200)),
-            "input_type": draw(st.text(min_size=1, max_size=100)),
+            "requirement_type": draw(st.sampled_from([
+                "USER_STORY", "USER_NEED", "DESIGN_INPUT", "DESIGN_OUTPUT",
+                "PROCESS_REQUIREMENT", "WORK_INSTRUCTION_REQUIREMENT"
+            ])),
             "content": draw(st.text(min_size=1, max_size=5000)),
-        }
-    elif mind_type == "design_output":
-        return {
-            "output_type": draw(st.text(min_size=1, max_size=100)),
-            "verification_status": draw(st.text(min_size=1, max_size=100)),
-            "content": draw(st.text(min_size=1, max_size=5000)),
-        }
-    elif mind_type == "process_requirement":
-        return {
-            "process_name": draw(st.text(min_size=1, max_size=200)),
-            "requirement_text": draw(st.text(min_size=1, max_size=1000)),
+            "source": draw(st.text(min_size=1, max_size=200) | st.none()),
+            "acceptance_criteria": draw(st.text(min_size=1, max_size=1000) | st.none()),
             "compliance_standard": draw(st.text(min_size=1, max_size=100) | st.none()),
-        }
-    elif mind_type == "work_instruction_requirement":
-        return {
-            "instruction_id": draw(st.text(min_size=1, max_size=50)),
-            "procedure": draw(st.text(min_size=1, max_size=2000)),
             "safety_critical": draw(st.booleans()),
         }
     elif mind_type == "acceptance_criteria":
@@ -167,6 +128,22 @@ def type_specific_attributes_strategy(draw, mind_type: str):
             "effects": draw(st.text(min_size=1, max_size=500)),
             "causes": draw(st.text(min_size=1, max_size=500)),
             "detection_method": draw(st.text(min_size=1, max_size=200) | st.none()),
+        }
+    elif mind_type == "account":
+        return {
+            "account_type": draw(st.sampled_from(["COST", "REVENUE"])),
+        }
+    elif mind_type == "schedulehistory":
+        return {
+            "schedule_id": draw(st.text(min_size=1, max_size=50)),
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "status": draw(st.sampled_from([s.value for s in StatusEnum])),
+        }
+    elif mind_type == "scheduledtask":
+        return {
+            "source_task_uuid": draw(st.uuids()).hex,
+            "scheduled_start": datetime.now(timezone.utc).isoformat(),
+            "scheduled_end": datetime.now(timezone.utc).isoformat(),
         }
     else:
         return {}

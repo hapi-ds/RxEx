@@ -1509,28 +1509,29 @@ class TestMindServiceCreateRelationship:
         )
         task = await service.create_mind(task_data)
 
-        # Create employee node
-        employee_data = MindCreate(
-            mind_type="employee",
+        # Create resource node (replaces employee)
+        resource_data = MindCreate(
+            mind_type="resource",
             title="John Doe",
             creator="hr@example.com",
             type_specific_attributes={
                 "email": "john.doe@example.com",
-                "role": "Developer",
-                "hire_date": "2023-01-15",
+                "resource_type": "PERSON",
+                "efficiency": 1.0,
+                "daily_rate": 800.0,
             },
         )
-        employee = await service.create_mind(employee_data)
+        resource = await service.create_mind(resource_data)
 
         # Create assigned_to relationship
         relationship = await service.create_relationship(
-            task.uuid, employee.uuid, "assigned_to"
+            task.uuid, resource.uuid, "assigned_to"
         )
 
         # Verify relationship
         assert relationship.relationship_type == "assigned_to"
         assert relationship.source_uuid == task.uuid
-        assert relationship.target_uuid == employee.uuid
+        assert relationship.target_uuid == resource.uuid
 
     @pytest.mark.asyncio
     async def test_create_relationship_relates_to(self, clean_database):

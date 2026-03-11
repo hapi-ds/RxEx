@@ -13,7 +13,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-from pydantic import EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, field_validator, field_serializer
 
 from .enums import (
     PriorityEnum,
@@ -103,7 +103,7 @@ class Task(BaseMind):
     )
             
     # Consolidated task types (PHASE, MILESTONE, WORKPACKAGE)
-    task_type: TaskType = Field(default=TaskType.TASK, description="Type of task")
+    task_type: TaskType = Field(default="TASK", description="Type of task")
     phase_number: Optional[int] = Field(
         default=None, ge=1, description="Sequential phase number (when task_type=PHASE)"
     )
@@ -113,6 +113,27 @@ class Task(BaseMind):
     completion_percentage: Optional[float] = Field(
         default=None, ge=0, le=100, description="Completion percentage 0-100 (when task_type=MILESTONE)"
     )
+
+    @field_serializer('task_type')
+    def serialize_task_type(self, task_type: TaskType, _info):
+        """Serialize TaskType enum to its value for Neo4j storage."""
+        if isinstance(task_type, TaskType):
+            return task_type.value
+        return task_type
+
+    @field_validator('task_type', mode='before')
+    @classmethod
+    def validate_task_type(cls, v):
+        """Validate and normalize task_type from various formats."""
+        if isinstance(v, TaskType):
+            return v
+        if isinstance(v, str):
+            # Handle "TaskType.TASK" format from old data
+            if v.startswith("TaskType."):
+                v = v.replace("TaskType.", "")
+            # Now validate against enum values
+            return TaskType(v)
+        return v
 
 
 class Company(BaseMind):

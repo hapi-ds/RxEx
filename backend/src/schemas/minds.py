@@ -38,7 +38,7 @@ class MindCreate(BaseModel):
     mind_type: str = Field(
         ...,
         min_length=1,
-        description="Type of Mind node (project, phase, task, milestone, company, department, employee, email, knowledge, user_story, user_need, design_input, design_output, process_requirement, work_instruction_requirement, acceptance_criteria, risk, failure)",
+        description="Type of Mind node (project, task, company, department, resource, email, knowledge, requirement, acceptance_criteria, risk, failure, account, schedulehistory, scheduledtask)",
         examples=["project"],
     )
     title: str = Field(
@@ -72,23 +72,19 @@ class MindCreate(BaseModel):
         """Validate that mind_type is one of the supported types."""
         valid_types = {
             "project",
-            "phase",
             "task",
-            "milestone",
             "company",
             "department",
-            "employee",
+            "resource",  # Replaces "employee" - use resource_type=PERSON in type_specific_attributes
             "email",
             "knowledge",
-            "user_story",
-            "user_need",
-            "design_input",
-            "design_output",
-            "process_requirement",
-            "work_instruction_requirement",
+            "requirement",  # Consolidated: user_story, user_need, design_input, design_output, process_requirement, work_instruction_requirement
             "acceptance_criteria",
             "risk",
             "failure",
+            "account",
+            "schedulehistory",
+            "scheduledtask",
         }
         if v not in valid_types:
             raise ValueError(f"mind_type must be one of: {', '.join(sorted(valid_types))}")
@@ -251,23 +247,19 @@ class MindQueryFilters(BaseModel):
             return v
         valid_types = {
             "project",
-            "phase",
             "task",
-            "milestone",
             "company",
             "department",
-            "employee",
+            "resource",  # Replaces "employee"
             "email",
             "knowledge",
-            "user_story",
-            "user_need",
-            "design_input",
-            "design_output",
-            "process_requirement",
-            "work_instruction_requirement",
+            "requirement",  # Consolidated type
             "acceptance_criteria",
             "risk",
             "failure",
+            "account",
+            "schedulehistory",
+            "scheduledtask",
         }
         if v not in valid_types:
             raise ValueError(f"mind_type must be one of: {', '.join(sorted(valid_types))}")
