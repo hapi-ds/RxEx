@@ -101,19 +101,7 @@ class Task(BaseMind):
         default=None,
         description="Optional due date for task completion"
     )
-    priority: PriorityEnum = Field(..., description="Task priority level")
-    assignee: str = Field(
-        ...,
-        min_length=1,
-        description="User identifier of the person assigned to the task"
-    )
-    due_date: Optional[date] = Field(default=None, description="Optional due date for task completion")
-    estimated_hours: Optional[float] = Field(
-        default=None,
-        ge=0,
-        description="Optional estimated effort in hours"
-    )
-    
+            
     # Consolidated task types (PHASE, MILESTONE, WORKPACKAGE)
     task_type: TaskType = Field(default=TaskType.TASK, description="Type of task")
     phase_number: Optional[int] = Field(
@@ -410,11 +398,6 @@ class Account(BaseMind):
     account_type: AccountType = Field(
         default=AccountType.COST, description="Type of account (COST or REVENUE)"
     )
-
-
-# ============================================================================
-# TASKJUGGLER ENHANCED TYPES - SCHEDULED LAYER
-# ============================================================================
 
 
 class ScheduleHistory(BaseMind):
