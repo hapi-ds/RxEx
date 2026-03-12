@@ -131,8 +131,28 @@ class Task(BaseMind):
             # Handle "TaskType.TASK" format from old data
             if v.startswith("TaskType."):
                 v = v.replace("TaskType.", "")
-            # Now validate against enum values
-            return TaskType(v)
+            # Now validate against enum values (uppercase for TaskType)
+            return TaskType(v.upper())
+        return v
+
+    @field_serializer('priority')
+    def serialize_priority(self, priority: PriorityEnum, _info):
+        """Serialize PriorityEnum to its value."""
+        if isinstance(priority, PriorityEnum):
+            return priority.value
+        return priority
+
+    @field_validator('priority', mode='before')
+    @classmethod
+    def validate_priority(cls, v):
+        """Validate and normalize priority from various formats."""
+        if isinstance(v, PriorityEnum):
+            return v
+        if isinstance(v, str):
+            if v.startswith("PriorityEnum."):
+                v = v.replace("PriorityEnum.", "")
+            # Try case-insensitive match
+            return PriorityEnum(v.lower())
         return v
 
 
@@ -334,6 +354,46 @@ class Risk(BaseMind):
     )
 
 
+    @field_serializer('severity')
+    def serialize_severity(self, severity: SeverityEnum, _info):
+        """Serialize SeverityEnum to its value."""
+        if isinstance(severity, SeverityEnum):
+            return severity.value
+        return severity
+
+    @field_validator('severity', mode='before')
+    @classmethod
+    def validate_severity(cls, v):
+        """Validate and normalize severity from various formats."""
+        if isinstance(v, SeverityEnum):
+            return v
+        if isinstance(v, str):
+            if v.startswith("SeverityEnum."):
+                v = v.replace("SeverityEnum.", "")
+            return SeverityEnum(v.lower())
+        return v
+
+    @field_serializer('probability')
+    def serialize_probability(self, probability: ProbabilityEnum, _info):
+        """Serialize ProbabilityEnum to its value."""
+        if isinstance(probability, ProbabilityEnum):
+            return probability.value
+        return probability
+
+    @field_validator('probability', mode='before')
+    @classmethod
+    def validate_probability(cls, v):
+        """Validate and normalize probability from various formats."""
+        if isinstance(v, ProbabilityEnum):
+            return v
+        if isinstance(v, str):
+            if v.startswith("ProbabilityEnum."):
+                v = v.replace("ProbabilityEnum.", "")
+            return ProbabilityEnum(v.lower())
+        return v
+
+
+
 class Failure(BaseMind):
     """
     Failure Mind type representing a failure mode analysis.
@@ -394,6 +454,27 @@ class Requirement(BaseMind):
         default=False, description="Safety-critical flag"
     )
 
+
+    @field_serializer('requirement_type')
+    def serialize_requirement_type(self, requirement_type: RequirementType, _info):
+        """Serialize RequirementType enum to its value."""
+        if isinstance(requirement_type, RequirementType):
+            return requirement_type.value
+        return requirement_type
+
+    @field_validator('requirement_type', mode='before')
+    @classmethod
+    def validate_requirement_type(cls, v):
+        """Validate and normalize requirement_type from various formats."""
+        if isinstance(v, RequirementType):
+            return v
+        if isinstance(v, str):
+            if v.startswith("RequirementType."):
+                v = v.replace("RequirementType.", "")
+            return RequirementType(v.upper())
+        return v
+
+
 class Resource(BaseMind):
     """Resource Mind type representing a human or system resource."""
 
@@ -411,6 +492,27 @@ class Resource(BaseMind):
     )
 
 
+    @field_serializer('resource_type')
+    def serialize_resource_type(self, resource_type: ResourceType, _info):
+        """Serialize ResourceType enum to its value."""
+        if isinstance(resource_type, ResourceType):
+            return resource_type.value
+        return resource_type
+
+    @field_validator('resource_type', mode='before')
+    @classmethod
+    def validate_resource_type(cls, v):
+        """Validate and normalize resource_type from various formats."""
+        if isinstance(v, ResourceType):
+            return v
+        if isinstance(v, str):
+            if v.startswith("ResourceType."):
+                v = v.replace("ResourceType.", "")
+            return ResourceType(v.upper())
+        return v
+
+
+
 class Account(BaseMind):
     """Account Mind type for cost/revenue tracking."""
 
@@ -419,6 +521,27 @@ class Account(BaseMind):
     account_type: AccountType = Field(
         default=AccountType.COST, description="Type of account (COST or REVENUE)"
     )
+
+
+    @field_serializer('account_type')
+    def serialize_account_type(self, account_type: AccountType, _info):
+        """Serialize AccountType enum to its value."""
+        if isinstance(account_type, AccountType):
+            return account_type.value
+        return account_type
+
+    @field_validator('account_type', mode='before')
+    @classmethod
+    def validate_account_type(cls, v):
+        """Validate and normalize account_type from various formats."""
+        if isinstance(v, AccountType):
+            return v
+        if isinstance(v, str):
+            if v.startswith("AccountType."):
+                v = v.replace("AccountType.", "")
+            return AccountType(v.upper())
+        return v
+
 
 
 class ScheduleHistory(BaseMind):
@@ -437,6 +560,27 @@ class ScheduleHistory(BaseMind):
     total_cost: Optional[float] = Field(default=None, ge=0.0, description="Total project cost")
     global_start: Optional[datetime] = Field(default=None, description="First task start date")
     global_end: Optional[datetime] = Field(default=None, description="Last task end date")
+
+
+    @field_serializer('status')
+    def serialize_status(self, status: StatusEnum, _info):
+        """Serialize StatusEnum to its value."""
+        if isinstance(status, StatusEnum):
+            return status.value
+        return status
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate and normalize status from various formats."""
+        if isinstance(v, StatusEnum):
+            return v
+        if isinstance(v, str):
+            if v.startswith("StatusEnum."):
+                v = v.replace("StatusEnum.", "")
+            return StatusEnum(v.lower())
+        return v
+
 
 
 class ScheduledTask(BaseMind):
