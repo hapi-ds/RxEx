@@ -164,3 +164,47 @@ class AssignedTo(BaseRelationship):
     effort_allocation: float = Field(
         ..., ge=0.0, le=1.0, description="Effort allocation as percentage (0.0-1.0)"
     )
+
+
+class To(BaseRelationship):
+    """
+    Relationship linking journal_entries or bookings to tasks or projects.
+
+    This relationship connects Journal_entry or booking nodes to Task nodes.
+    (Booking FOR resource x TO task y)
+
+    """
+
+    __relationshiptype__: str = "TO"
+
+    source: BaseMind
+    target: BaseMind
+
+
+class For(BaseRelationship):
+    """
+    Relationship linking bookings to resources.
+
+    This relationship connects Resource nodes to booking nodes.
+    (Booking FOR resource x TO task y)
+
+    """
+
+    __relationshiptype__: str = "FOR"
+
+    source: BaseMind
+    target: BaseMind
+
+
+class Refines(BaseRelationship):
+    """
+    Relationship linking Requirements to Requirements.
+
+    This relationship connects Requirement nodes to other Requirement nodes.
+
+    """
+
+    __relationshiptype__: str = "REFINES"
+
+    source: BaseMind
+    target: BaseMind

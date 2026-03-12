@@ -494,10 +494,16 @@ class Resource(BaseMind):
     email: Optional[str] = Field(
         default=None, description="Optional email address for the resource"
     )
-    efficiency: float = Field(
-        default=1.0, ge=0.0, le=1.0, description="Work efficiency factor (0.0-1.0)"
+    workinghours_max_per_week: float = Field(
+        default=40.0, ge=0.0, le=100.0, description="Maximal working hours per week (0.0-100.0)"
     )
-    daily_rate: float = Field(default=0.0, ge=0.0, description="Daily cost rate in currency units")
+    workinghours_per_year: float = Field(
+        default=1700.0, ge=0.0, description="Working hours per year"
+    )
+    efficiency: float = Field(
+        default=1.0, ge=0.0, le=5.0, description="Work efficiency factor (0.0-5.0)"
+    )
+    hourly_rate: float = Field(default=100.0, ge=0.0, description="Hourly cost rate in EUR")
     resource_type: ResourceType = Field(
         default=ResourceType.PERSON, description="Type of resource"
     )
@@ -521,6 +527,49 @@ class Resource(BaseMind):
                 v = v.replace("ResourceType.", "")
             return ResourceType(v.upper())
         return v
+
+
+class Journalentry(BaseMind):
+    """Journalentry Mind type TO task or project."""
+
+    __primarylabel__: str = "Journalentry"
+
+    severity: SeverityEnum = Field(
+        ...,
+        description="Severity of the journal entry"
+    )
+
+
+    @field_serializer('severity')
+    def serialize_severity(self, severity: SeverityEnum, _info):
+        """Serialize SeverityEnum to its value."""
+        if isinstance(severity, SeverityEnum):
+            return severity.value
+        return severity
+
+    @field_validator('severity', mode='before')
+    @classmethod
+    def validate_severity(cls, v):
+        """Validate and normalize severity from various formats."""
+        if isinstance(v, SeverityEnum):
+            return v
+        if isinstance(v, str):
+            if v.startswith("SeverityEnum."):
+                v = v.replace("SeverityEnum.", "")
+            return SeverityEnum(v.lower())
+        return v
+
+
+
+class Booking(BaseMind):
+    """Booking Mind type for booking working hours TO task FOR resource."""
+
+    __primarylabel__: str = "Booking"
+
+    hours_worked: float = Field(
+        default=1.0, ge=0.0, description="Worked x hours (0.0-1.0)"
+    )
+
 
 
 

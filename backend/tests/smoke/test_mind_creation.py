@@ -92,7 +92,7 @@ def test_create_resource(client):
                 "resource_type": "PERSON",
                 "email": "test@example.com",
                 "efficiency": 1.0,
-                "daily_rate": 500.0,
+                "hourly_rate": 500.0,
             },
         },
     )

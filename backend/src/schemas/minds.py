@@ -250,6 +250,93 @@ class AccountResponse(BaseModel):
 
 
 
+class BookingCreate(BaseModel):
+    """Schema for creating a Booking."""
+
+    title: str
+    created_at: datetime | None = None
+    creator: str
+    status: StatusEnum | None = StatusEnum.DRAFT
+    description: str | None = None
+    tags: list[str] | None = None
+    hours_worked: float | None = 1.0
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+
+
+class BookingUpdate(BaseModel):
+    """Schema for updating a Booking. All fields are optional."""
+
+    title: str | None = None
+    created_at: datetime | None = None
+    creator: str | None = None
+    status: StatusEnum | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    hours_worked: float | None = None
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+
+
+class BookingResponse(BaseModel):
+    """Schema for Booking responses."""
+
+    uuid: UUID | None = None
+    title: str
+    version: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    creator: str
+    status: StatusEnum | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    hours_worked: float | None = None
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+
+
 class CompanyCreate(BaseModel):
     """Schema for creating a Company."""
 
@@ -625,6 +712,130 @@ class FailureResponse(BaseModel):
 
 
 
+class JournalentryCreate(BaseModel):
+    """Schema for creating a Journalentry."""
+
+    title: str
+    created_at: datetime | None = None
+    creator: str
+    status: StatusEnum | None = StatusEnum.DRAFT
+    description: str | None = None
+    tags: list[str] | None = None
+    severity: SeverityEnum
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+    @field_serializer('severity')
+    def serialize_severity(self, value: SeverityEnum) -> str:
+        return value.value if isinstance(value, SeverityEnum) else value
+
+    @field_validator('severity', mode='before')
+    @classmethod
+    def validate_severity(cls, value):
+        if isinstance(value, str):
+            return SeverityEnum(value)
+        return value
+
+
+
+class JournalentryUpdate(BaseModel):
+    """Schema for updating a Journalentry. All fields are optional."""
+
+    title: str | None = None
+    created_at: datetime | None = None
+    creator: str | None = None
+    status: StatusEnum | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    severity: SeverityEnum | None = None
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+    @field_serializer('severity')
+    def serialize_severity(self, value: SeverityEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, SeverityEnum) else value
+
+    @field_validator('severity', mode='before')
+    @classmethod
+    def validate_severity(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return SeverityEnum(value)
+        return value
+
+
+
+class JournalentryResponse(BaseModel):
+    """Schema for Journalentry responses."""
+
+    uuid: UUID | None = None
+    title: str
+    version: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    creator: str
+    status: StatusEnum | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    severity: SeverityEnum
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+    @field_serializer('severity')
+    def serialize_severity(self, value: SeverityEnum) -> str:
+        return value.value if isinstance(value, SeverityEnum) else value
+
+    @field_validator('severity', mode='before')
+    @classmethod
+    def validate_severity(cls, value):
+        if isinstance(value, str):
+            return SeverityEnum(value)
+        return value
+
+
+
 class KnowledgeCreate(BaseModel):
     """Schema for creating a Knowledge."""
 
@@ -960,8 +1171,10 @@ class ResourceCreate(BaseModel):
     description: str | None = None
     tags: list[str] | None = None
     email: str | None = None
+    workinghours_max_per_week: float | None = 40.0
+    workinghours_per_year: float | None = 1700.0
     efficiency: float | None = 1.0
-    daily_rate: float | None = 0.0
+    hourly_rate: float | None = 100.0
     resource_type: ResourceType | None = ResourceType.PERSON
 
     @field_serializer('status')
@@ -1006,8 +1219,10 @@ class ResourceUpdate(BaseModel):
     description: str | None = None
     tags: list[str] | None = None
     email: str | None = None
+    workinghours_max_per_week: float | None = None
+    workinghours_per_year: float | None = None
     efficiency: float | None = None
-    daily_rate: float | None = None
+    hourly_rate: float | None = None
     resource_type: ResourceType | None = None
 
     @field_serializer('status')
@@ -1055,8 +1270,10 @@ class ResourceResponse(BaseModel):
     description: str | None = None
     tags: list[str] | None = None
     email: str | None = None
+    workinghours_max_per_week: float | None = None
+    workinghours_per_year: float | None = None
     efficiency: float | None = None
-    daily_rate: float | None = None
+    hourly_rate: float | None = None
     resource_type: ResourceType | None = None
 
     @field_serializer('status')
