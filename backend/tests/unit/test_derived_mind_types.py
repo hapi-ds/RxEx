@@ -84,12 +84,10 @@ class TestTask:
             creator="test@example.com",
             priority=PriorityEnum.CRITICAL,
             assignee="dev@example.com",
-            due_date=date(2024, 6, 30),
-            estimated_hours=40
+            due_date=date(2024, 6, 30)
         )
 
         assert task.due_date == date(2024, 6, 30)
-        assert task.estimated_hours == 40
 
     def test_task_invalid_priority(self):
         """Test that invalid priority raises ValidationError."""
@@ -102,7 +100,9 @@ class TestTask:
             )
 
         errors = exc_info.value.errors()
-        assert any(e["type"] == "enum" for e in errors)
+        # Custom validator raises value_error instead of enum
+        assert any(e["type"] in ("enum", "value_error") for e in errors)
+        assert any("priority" in str(e.get("loc", "")) for e in errors)
 
 
 class TestRisk:
@@ -147,11 +147,11 @@ class TestRequirement:
         instruction = Requirement(
             title="Safety Procedure",
             creator="test@example.com",
-            requirement_type=RequirementType.WORK_INSTRUCTION_REQUIREMENT,
+            requirement_type="WORK_INSTRUCTION_REQUIREMENT",
             content="Follow safety checklist before operation",
             safety_critical=True
         )
 
-        assert instruction.requirement_type == RequirementType.WORK_INSTRUCTION_REQUIREMENT
+        assert instruction.requirement_type.value == "WORK_INSTRUCTION_REQUIREMENT"
         assert instruction.content == "Follow safety checklist before operation"
         assert instruction.safety_critical is True

@@ -25,7 +25,7 @@ from ..exceptions import (
     RateLimitError,
 )
 from ..models.enums import StatusEnum
-from ..schemas.minds import (
+from ..schemas.mind_generic import (
     ErrorResponse,
     MindBulkUpdate,
     MindCreate,

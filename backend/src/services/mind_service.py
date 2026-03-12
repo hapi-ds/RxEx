@@ -30,7 +30,7 @@ from ..models.mind_types import (
     ScheduledTask,
     Requirement,
 )
-from ..schemas.minds import (
+from ..schemas.mind_generic import (
     MindBulkUpdate,
     MindCreate,
     MindQueryFilters,
@@ -126,10 +126,12 @@ class MindService:
             mind_type=mind_data.mind_type,
             title=mind_node.title,
             version=mind_node.version,
+            created_at=mind_node.updated_at,  # Using updated_at as created_at proxy
             updated_at=mind_node.updated_at,
             creator=mind_node.creator,
             status=mind_node.status,
             description=mind_node.description,
+            tags=None,  # BaseMind doesn't have tags field
             type_specific_attributes=self._extract_type_specific_attributes(
                 mind_node, mind_data.mind_type
             ),
@@ -250,10 +252,12 @@ class MindService:
             mind_type=mind_type,
             title=mind_node.title,
             version=mind_node.version,
+            created_at=mind_node.updated_at,  # Using updated_at as created_at proxy
             updated_at=mind_node.updated_at,
             creator=mind_node.creator,
             status=mind_node.status,
             description=mind_node.description,
+            tags=None,  # BaseMind doesn't have tags field
             type_specific_attributes=self._extract_type_specific_attributes(mind_node, mind_type),
         )
 
@@ -363,10 +367,12 @@ class MindService:
             mind_type=current_response.mind_type,
             title=new_mind_node.title,
             version=new_mind_node.version,
+            created_at=new_mind_node.updated_at,  # Using updated_at as created_at proxy
             updated_at=new_mind_node.updated_at,
             creator=new_mind_node.creator,
             status=new_mind_node.status,
             description=new_mind_node.description,
+            tags=None,  # BaseMind doesn't have tags field
             type_specific_attributes=self._extract_type_specific_attributes(
                 new_mind_node, current_response.mind_type
             ),
@@ -452,10 +458,12 @@ class MindService:
                         mind_type=latest_response.mind_type,
                         title=mind_node.title,
                         version=mind_node.version,
+                        created_at=mind_node.updated_at,  # Using updated_at as created_at proxy
                         updated_at=mind_node.updated_at,
                         creator=mind_node.creator,
                         status=mind_node.status,
                         description=mind_node.description,
+                        tags=None,  # BaseMind doesn't have tags field
                         type_specific_attributes=self._extract_type_specific_attributes(
                             mind_node, latest_response.mind_type
                         ),
@@ -523,7 +531,7 @@ class MindService:
             # Soft delete: Create new version with status="deleted" (Requirements 7.1, 7.2)
             # Use update_mind to create a new version following version history rules
             from ..models.enums import StatusEnum
-            from ..schemas.minds import MindUpdate
+            from ..schemas.mind_generic import MindUpdate
 
             update_data = MindUpdate(status=StatusEnum.DELETED)
             await self.update_mind(uuid, update_data)
@@ -558,7 +566,7 @@ class MindService:
         **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.6**
         """
         from ..exceptions import MindRelationshipError
-        from ..schemas.minds import RelationshipResponse
+        from ..schemas.mind_generic import RelationshipResponse
 
         # Validate relationship type (Requirement 8.2)
         valid_types = {
@@ -683,7 +691,7 @@ class MindService:
         **Validates: Requirements 8.5**
         """
         from ..exceptions import MindNotFoundError
-        from ..schemas.minds import RelationshipResponse
+        from ..schemas.mind_generic import RelationshipResponse
 
         # Validate direction parameter
         valid_directions = {"outgoing", "incoming", "both"}
@@ -845,7 +853,7 @@ class MindService:
         """
         from neontology import GraphConnection
 
-        from ..schemas.minds import QueryResult
+        from ..schemas.mind_generic import QueryResult
 
         gc = GraphConnection()
 
@@ -980,10 +988,12 @@ class MindService:
                         mind_type=mind_type,
                         title=mind_node.title,
                         version=mind_node.version,
+                        created_at=mind_node.updated_at,  # Using updated_at as created_at proxy
                         updated_at=mind_node.updated_at,
                         creator=mind_node.creator,
                         status=mind_node.status,
                         description=mind_node.description,
+                        tags=None,  # BaseMind doesn't have tags field
                         type_specific_attributes=self._extract_type_specific_attributes(
                             mind_node, mind_type
                         ),

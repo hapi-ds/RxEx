@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Query, status
 
-from ..schemas.minds import MindResponse
+from ..schemas.mind_generic import MindResponse
 from ..services.scheduler_service import SchedulerService, ScheduleResult, schedule_project
 
 router = APIRouter(prefix="/api/v1/schedules", tags=["scheduling"])

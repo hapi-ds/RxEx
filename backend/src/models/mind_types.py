@@ -75,13 +75,12 @@ class Task(BaseMind):
     Task Mind type representing a work item with priority and assignment.
 
     Extends BaseMind with task-specific attributes including priority level,
-    assignee, optional due date, and estimated effort.
+    assignee, and optional due date.
 
     Attributes:
         priority: Task priority level (low, medium, high, critical)
         assignee: User identifier of the person assigned to the task
         due_date: Optional due date for task completion
-        estimated_hours: Optional estimated effort in hours
 
     **Validates: Requirements 2.1, 2.2, 2.3, 9.2**
     """
