@@ -45,6 +45,7 @@ import { FocusModeBadge } from './FocusModeBadge';
 import { getLayoutFunction } from './layouts';
 import type { NodePosition } from './layouts';
 import { Tooltip } from './Tooltip';
+import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
 
 /**
  * Convert Mind to ReactFlow Node
@@ -56,14 +57,16 @@ function mindToNode(
   onMouseEnter: (event: React.MouseEvent, nodeId: string) => void,
   onMouseLeave: () => void
 ): Node {
+  const nodeType = mindTypeToNodeType((mind as any).mind_type);
+  
   return {
     id: mind.uuid!,
-    type: ((mind as any).mind_type?.charAt(0).toUpperCase() + (mind as any).mind_type?.slice(1)) || 'Knowledge', // Capitalize mind_type from backend
+    type: nodeType,
     position: { x: 0, y: 0 }, // Will be set by layout algorithm
     selected: isSelected,
     data: {
       label: mind.title,
-      type: ((mind as any).mind_type?.charAt(0).toUpperCase() + (mind as any).mind_type?.slice(1)) || 'Knowledge',
+      type: nodeType,
       mind,
       isFocused,
       onMouseEnter,
@@ -129,7 +132,7 @@ export function GraphCanvas() {
         content: (
           <div>
             <div className="tooltip-title">{mind.title}</div>
-            <div className="tooltip-type">{((mind as any).mind_type?.charAt(0).toUpperCase() + (mind as any).mind_type?.slice(1)) || 'Unknown'}</div>
+            <div className="tooltip-type">{mindTypeToNodeType((mind as any).mind_type)}</div>
           </div>
         ),
         x: event.clientX,

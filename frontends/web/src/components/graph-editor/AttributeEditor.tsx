@@ -24,6 +24,7 @@ import type { AttributeConfig } from './nodeTypeConfig';
 import { TextInput, NumberInput, DateInput, EnumInput, ArrayInput } from './form-inputs';
 import { mindsAPI } from '../../services/api';
 import { ConfirmDialog } from './ConfirmDialog';
+import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
 import './AttributeEditor.css';
 
 /**
@@ -78,7 +79,7 @@ function NodeAttributeView({ node }: { node: Mind }) {
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
 
   // Get config, fallback to a default if not found
-  const nodeType = ((node as any).mind_type?.charAt(0).toUpperCase() + (node as any).mind_type?.slice(1)) || 'Knowledge';
+  const nodeType = mindTypeToNodeType((node as any).mind_type);
   const config = getNodeTypeConfig(nodeType);
 
   // Sync formData with node prop when it changes (e.g., after successful save or node selection change)
@@ -399,11 +400,11 @@ function RelationshipAttributeView({ relationship }: { relationship: { id: strin
           <ReadOnlyField label="Type" value={relationship.type} />
           <ReadOnlyField 
             label="Source" 
-            value={sourceNode ? `${sourceNode.title} (${((sourceNode as any).mind_type?.charAt(0).toUpperCase() + (sourceNode as any).mind_type?.slice(1)) || 'Unknown'})` : relationship.source} 
+            value={sourceNode ? `${sourceNode.title} (${mindTypeToNodeType((sourceNode as any).mind_type)})` : relationship.source} 
           />
           <ReadOnlyField 
             label="Target" 
-            value={targetNode ? `${targetNode.title} (${((targetNode as any).mind_type?.charAt(0).toUpperCase() + (targetNode as any).mind_type?.slice(1)) || 'Unknown'})` : relationship.target} 
+            value={targetNode ? `${targetNode.title} (${mindTypeToNodeType((targetNode as any).mind_type)})` : relationship.target} 
           />
         </section>
 

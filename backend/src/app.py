@@ -114,8 +114,8 @@ async def read_root():
 
 app.include_router(UserRouter, tags=["Administrator"], prefix="/users")
 app.include_router(PostRouter, tags=["Posts"], prefix="/posts")
-app.include_router(minds_router, tags=["Minds"], prefix="/minds")
-app.include_router(relationships_router, tags=["Relationships"], prefix="/relationships")
+app.include_router(minds_router, tags=["Minds"], prefix="/api/v1/minds")
+app.include_router(relationships_router, tags=["Relationships"], prefix="/api/v1/relationships")
 app.include_router(websocket_router, tags=["WebSocket"])
 
 # Register exception handlers for Mind system

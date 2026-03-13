@@ -19,6 +19,7 @@ import { relationshipsAPI } from '../../services/api';
 import { useToast } from './ToastContext';
 import { useScreenReaderAnnouncer } from './ScreenReaderAnnouncer';
 import type { RelationshipType } from '../../types';
+import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
 import './CreateRelationshipModal.css';
 
 export interface CreateRelationshipModalProps {
@@ -160,7 +161,7 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
               <option value="">Select source node...</option>
               {availableNodes.map((node) => (
                 <option key={node.uuid} value={node.uuid}>
-                  {node.title} ({((node as any).mind_type?.charAt(0).toUpperCase() + (node as any).mind_type?.slice(1)) || 'Unknown'})
+                  {node.title} ({mindTypeToNodeType((node as any).mind_type)})
                 </option>
               ))}
             </select>
@@ -183,7 +184,7 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
               <option value="">Select target node...</option>
               {availableNodes.map((node) => (
                 <option key={node.uuid} value={node.uuid}>
-                  {node.title} ({((node as any).mind_type?.charAt(0).toUpperCase() + (node as any).mind_type?.slice(1)) || 'Unknown'})
+                  {node.title} ({mindTypeToNodeType((node as any).mind_type)})
                 </option>
               ))}
             </select>

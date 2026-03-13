@@ -138,7 +138,7 @@ export const mindsAPI = {
    * @returns Promise with array of minds
    */
   list: async (): Promise<Mind[]> => {
-    const response = await api.get<{ items: Mind[]; total: number }>('/minds');
+    const response = await api.get<{ items: Mind[]; total: number }>('/api/v1/minds');
     return response.data.items;
   },
 
@@ -148,7 +148,7 @@ export const mindsAPI = {
    * @returns Promise with the mind data
    */
   get: async (uuid: string): Promise<Mind> => {
-    const response = await api.get<Mind>(`/minds/${uuid}`);
+    const response = await api.get<Mind>(`/api/v1/minds/${uuid}`);
     return response.data;
   },
 
@@ -158,7 +158,7 @@ export const mindsAPI = {
    * @returns Promise with array of all versions of the mind
    */
   getVersions: async (uuid: string): Promise<Mind[]> => {
-    const response = await api.get<Mind[]>(`/minds/${uuid}/history`);
+    const response = await api.get<Mind[]>(`/api/v1/minds/${uuid}/history`);
     return response.data;
   },
 
@@ -168,7 +168,7 @@ export const mindsAPI = {
    * @returns Promise with the created mind
    */
   create: async (data: Omit<Mind, 'uuid' | 'version' | 'created_at' | 'updated_at'>): Promise<Mind> => {
-    const response = await api.post<Mind>('/minds', data);
+    const response = await api.post<Mind>('/api/v1/minds', data);
     return response.data;
   },
 
@@ -179,7 +179,7 @@ export const mindsAPI = {
    * @returns Promise with the updated mind (new version)
    */
   update: async (uuid: string, data: Partial<Omit<Mind, 'uuid' | 'version' | 'created_at' | 'updated_at'>>): Promise<Mind> => {
-    const response = await api.put<Mind>(`/minds/${uuid}`, data);
+    const response = await api.put<Mind>(`/api/v1/minds/${uuid}`, data);
     return response.data;
   },
 
@@ -189,7 +189,7 @@ export const mindsAPI = {
    * @returns Promise that resolves when deletion is complete
    */
   delete: async (uuid: string): Promise<void> => {
-    await api.delete(`/minds/${uuid}`);
+    await api.delete(`/api/v1/minds/${uuid}`);
   },
 };
 
@@ -209,7 +209,7 @@ export const relationshipsAPI = {
       relationship_type: string;
       created_at: string;
       properties?: Record<string, any>;
-    }>>('/relationships');
+    }>>('/api/v1/relationships');
     
     // Transform backend format to frontend format
     return response.data.map(rel => ({
@@ -227,7 +227,7 @@ export const relationshipsAPI = {
    * @returns Promise with the created relationship
    */
   create: async (data: Omit<Relationship, 'id'>): Promise<Relationship> => {
-    const response = await api.post<Relationship>('/relationships', data);
+    const response = await api.post<Relationship>('/api/v1/relationships', data);
     return response.data;
   },
 
@@ -238,7 +238,7 @@ export const relationshipsAPI = {
    * @returns Promise with the updated relationship
    */
   update: async (id: string, data: Partial<Omit<Relationship, 'id'>>): Promise<Relationship> => {
-    const response = await api.put<Relationship>(`/relationships/${id}`, data);
+    const response = await api.put<Relationship>(`/api/v1/relationships/${id}`, data);
     return response.data;
   },
 
@@ -248,7 +248,7 @@ export const relationshipsAPI = {
    * @returns Promise that resolves when deletion is complete
    */
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/relationships/${id}`);
+    await api.delete(`/api/v1/relationships/${id}`);
   },
 };
 

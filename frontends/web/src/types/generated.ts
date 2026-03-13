@@ -312,6 +312,20 @@ export interface Booking {
   hours_worked?: number;
 }
 
+export interface Sprint {
+  __primarylabel__: 'Sprint';
+  uuid?: string; // Unique identifier that remains constant across all versions
+  title: string; // Human-readable name for the Mind node
+  version?: number; // Auto-incrementing version number
+  created_at?: string;
+  updated_at?: string;
+  creator: string; // User identifier who created the node
+  status?: StatusEnum; // Current lifecycle state
+  description?: string | null; // Optional detailed description
+  tags?: string[] | null; // Optional list of tags for categorization
+  test_item?: number;
+}
+
 export interface Account {
   __primarylabel__: 'Account';
   uuid?: string; // Unique identifier that remains constant across all versions
@@ -373,6 +387,6 @@ export interface ScheduledTask {
 // Union Types
 // ============================================================================
 
-export type Mind = Project | Task | Company | Department | Email | Knowledge | AcceptanceCriteria | Risk | Failure | Requirement | Resource | Journalentry | Booking | Account | ScheduleHistory | ScheduledTask;
+export type Mind = Project | Task | Company | Department | Email | Knowledge | AcceptanceCriteria | Risk | Failure | Requirement | Resource | Journalentry | Booking | Sprint | Account | ScheduleHistory | ScheduledTask;
 
-export type NodeType = 'Project' | 'Task' | 'Company' | 'Department' | 'Email' | 'Knowledge' | 'AcceptanceCriteria' | 'Risk' | 'Failure' | 'Requirement' | 'Resource' | 'Journalentry' | 'Booking' | 'Account' | 'ScheduleHistory' | 'ScheduledTask';
+export type NodeType = 'Project' | 'Task' | 'Company' | 'Department' | 'Email' | 'Knowledge' | 'AcceptanceCriteria' | 'Risk' | 'Failure' | 'Requirement' | 'Resource' | 'Journalentry' | 'Booking' | 'Sprint' | 'Account' | 'ScheduleHistory' | 'ScheduledTask';

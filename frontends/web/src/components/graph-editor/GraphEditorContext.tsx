@@ -11,6 +11,7 @@
 import React, { createContext, useContext, useReducer, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { Mind, NodeType } from '../../types/generated';
+import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
 
 // Re-export types for convenience
 export type { Mind, NodeType } from '../../types/generated';
@@ -185,7 +186,7 @@ function filterByNodeType(minds: Mind[], selectedTypes: Set<NodeType>): Mind[] {
   if (selectedTypes.size === 0) return minds;
   return minds.filter(m => {
     // Backend returns lowercase mind_type, capitalize it to match NodeType
-    const nodeType = ((m as any).mind_type?.charAt(0).toUpperCase() + (m as any).mind_type?.slice(1)) as NodeType;
+    const nodeType = mindTypeToNodeType((m as any).mind_type) as NodeType;
     return selectedTypes.has(nodeType);
   });
 }

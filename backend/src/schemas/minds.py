@@ -1697,6 +1697,93 @@ class ScheduledTaskResponse(BaseModel):
 
 
 
+class SprintCreate(BaseModel):
+    """Schema for creating a Sprint."""
+
+    title: str
+    created_at: datetime | None = None
+    creator: str
+    status: StatusEnum | None = StatusEnum.DRAFT
+    description: str | None = None
+    tags: list[str] | None = None
+    test_item: float | None = 1.0
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+
+
+class SprintUpdate(BaseModel):
+    """Schema for updating a Sprint. All fields are optional."""
+
+    title: str | None = None
+    created_at: datetime | None = None
+    creator: str | None = None
+    status: StatusEnum | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    test_item: float | None = None
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+
+
+class SprintResponse(BaseModel):
+    """Schema for Sprint responses."""
+
+    uuid: UUID | None = None
+    title: str
+    version: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    creator: str
+    status: StatusEnum | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    test_item: float | None = None
+
+    @field_serializer('status')
+    def serialize_status(self, value: StatusEnum | None) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, StatusEnum) else value
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return StatusEnum(value)
+        return value
+
+
+
 class TaskCreate(BaseModel):
     """Schema for creating a Task."""
 

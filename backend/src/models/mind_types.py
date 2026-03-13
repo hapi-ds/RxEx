@@ -570,6 +570,15 @@ class Booking(BaseMind):
         default=1.0, ge=0.0, description="Worked x hours (0.0-1.0)"
     )
 
+class Sprint(BaseMind):
+    """Sprint Mind type just for testing at the moment."""
+
+    __primarylabel__: str = "Sprint"
+
+    test_item: float = Field(
+        default=1.0, ge=0.0, description="Worked x hours (0.0-1.0)"
+    )
+
 
 
 

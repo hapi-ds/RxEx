@@ -21,6 +21,7 @@ import { useMemo, useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useGraphEditor, type NodeType } from './GraphEditorContext';
 import { NODE_TYPE_CONFIGS } from './nodeTypeConfig';
 import { useScreenReaderAnnouncer } from './ScreenReaderAnnouncer';
+import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
 import './FilterControls.css';
 
 /**
@@ -64,7 +65,7 @@ export const FilterControls = memo(function FilterControls() {
     // Count by type - use mind_type from backend and capitalize it
     mindsByUuid.forEach(mind => {
       // Backend returns lowercase mind_type, frontend expects capitalized NodeType
-      const type = (mind as any).mind_type?.charAt(0).toUpperCase() + (mind as any).mind_type?.slice(1) as NodeType;
+      const type = mindTypeToNodeType((mind as any).mind_type) as NodeType;
       if (type) {
         counts.set(type, (counts.get(type) || 0) + 1);
       }

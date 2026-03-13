@@ -624,6 +624,23 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
     ],
   },
 
+  Sprint: {
+    type: 'Sprint',
+    label: 'Sprint',
+    attributes: [
+      ...baseAttributes,
+      {
+        name: 'test_item',
+        type: 'number',
+        required: false,
+        readonly: false,
+        validation: { min: 0 },
+        label: 'Test Item',
+        placeholder: 'Enter test item value',
+      },
+    ],
+  },
+
   Account: {
     type: 'Account',
     label: 'Account',

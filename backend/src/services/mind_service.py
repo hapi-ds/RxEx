@@ -65,6 +65,9 @@ class MindService:
         "risk": Risk,
         "failure": Failure,
         "account": Account,
+        "journalentry": Journalentry,
+        "booking": Booking,
+        "sprint": Sprint,
         "schedulehistory": ScheduleHistory,
         "scheduledtask": ScheduledTask,
     }

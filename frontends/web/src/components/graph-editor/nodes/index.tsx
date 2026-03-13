@@ -22,6 +22,7 @@ import { BookingNode } from './BookingNode';
 import { AccountNode } from './AccountNode';
 import { ScheduleHistoryNode } from './ScheduleHistoryNode';
 import { ScheduledTaskNode } from './ScheduledTaskNode';
+import { SprintNode } from './SprintNode';
 
 /**
  * Node types configuration for react-flow
@@ -41,6 +42,7 @@ export const nodeTypes: NodeTypes = {
   Resource: ResourceNode,
   Journalentry: JournalentryNode,
   Booking: BookingNode,
+  Sprint: SprintNode,
   Account: AccountNode,
   ScheduleHistory: ScheduleHistoryNode,
   ScheduledTask: ScheduledTaskNode,
@@ -64,6 +66,7 @@ export const nodeColors: Record<string, string> = {
   Resource: '#84cc16',
   Journalentry: '#a855f7',
   Booking: '#f97316',
+  Sprint: '#22c55e',
   Account: '#059669',
   ScheduleHistory: '#64748b',
   ScheduledTask: '#0891b2',
@@ -87,4 +90,5 @@ export {
   AccountNode,
   ScheduleHistoryNode,
   ScheduledTaskNode,
+  SprintNode,
 };
