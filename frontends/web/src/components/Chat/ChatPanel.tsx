@@ -24,7 +24,7 @@ interface ChatPanelState {
   inputValue: string;
   isLoading: boolean;
   error: string | null;
-  pendingToolCall: ToolCall | null;
+  pendingToolCalls: ToolCall[];
   suggestionLog: SuggestionLogEntry[];
 }
 
@@ -35,7 +35,7 @@ export function ChatPanel() {
     inputValue: '',
     isLoading: false,
     error: null,
-    pendingToolCall: null,
+    pendingToolCalls: [],
     suggestionLog: [],
   });
 
@@ -118,10 +118,13 @@ export function ChatPanel() {
             if (event.tool_name && event.arguments) {
               setState(prev => ({
                 ...prev,
-                pendingToolCall: {
-                  tool_name: event.tool_name!,
-                  arguments: event.arguments!,
-                },
+                pendingToolCalls: [
+                  ...prev.pendingToolCalls,
+                  {
+                    tool_name: event.tool_name!,
+                    arguments: event.arguments!,
+                  },
+                ],
               }));
             }
             break;
@@ -201,37 +204,27 @@ export function ChatPanel() {
     }
   }, [state.inputValue, state.isLoading, state.messages, logout]);
 
-  // Handle confirming a tool call
-  const handleConfirmToolCall = useCallback(async () => {
-    if (!state.pendingToolCall) {
-      return;
-    }
-
-    const toolCall = state.pendingToolCall;
-
+  // Execute a single tool call (used by confirm and confirm-all)
+  const executeToolCall = useCallback(async (toolCall: ToolCall): Promise<boolean> => {
     try {
-      // Log confirmation
-      const logEntry: SuggestionLogEntry = {
-        timestamp: new Date().toISOString(),
-        tool_call: toolCall,
-        action: 'confirmed',
-      };
-
-      setState(prev => ({
-        ...prev,
-        suggestionLog: [...prev.suggestionLog, logEntry],
-        pendingToolCall: null,
-        isLoading: true,
-      }));
-
-      // Execute the tool call
       if (toolCall.tool_name === 'create_mind_node') {
         const { mind_type, title, description, status } = toolCall.arguments;
         
-        // Build the create payload - backend expects fields without __primarylabel__
+        let creator = 'ai-chat';
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            creator = payload.sub || payload.email || 'ai-chat';
+          }
+        } catch {
+          // fallback to default
+        }
+        
         const createPayload: Record<string, unknown> = {
-          mind_type: mind_type as string,
+          mind_type: (mind_type as string).toLowerCase(),
           title: title as string,
+          creator,
         };
         
         if (description) {
@@ -239,26 +232,24 @@ export function ChatPanel() {
         }
         
         if (status) {
-          createPayload.status = status as string;
+          createPayload.status = (status as string).toLowerCase();
         }
         
-        await mindsAPI.create(createPayload as Omit<Mind, 'uuid' | 'version' | 'created_at' | 'updated_at'>);
+        const createdMind = await mindsAPI.create(createPayload as Omit<Mind, 'uuid' | 'version' | 'created_at' | 'updated_at'>);
 
-        // Add success message
         const successMessage: ChatMessageType = {
           role: 'system',
-          content: `✓ Successfully created ${mind_type} node: "${title}"`,
+          content: `✓ Successfully created ${mind_type} node: "${title}" (uuid: ${createdMind.uuid})`,
           timestamp: new Date().toISOString(),
         };
 
         setState(prev => ({
           ...prev,
           messages: [...prev.messages, successMessage],
-          isLoading: false,
         }));
 
-        // Trigger graph refresh (emit custom event)
         window.dispatchEvent(new CustomEvent('graph-refresh'));
+        return true;
 
       } else if (toolCall.tool_name === 'create_relationship') {
         const { source_uuid, target_uuid, relationship_type } = toolCall.arguments;
@@ -269,7 +260,6 @@ export function ChatPanel() {
           properties: {},
         });
 
-        // Add success message
         const successMessage: ChatMessageType = {
           role: 'system',
           content: `✓ Successfully created ${relationship_type} relationship`,
@@ -279,13 +269,12 @@ export function ChatPanel() {
         setState(prev => ({
           ...prev,
           messages: [...prev.messages, successMessage],
-          isLoading: false,
         }));
 
-        // Trigger graph refresh
         window.dispatchEvent(new CustomEvent('graph-refresh'));
+        return true;
       }
-
+      return false;
     } catch (error: any) {
       console.error('Tool call execution error:', error);
 
@@ -298,31 +287,93 @@ export function ChatPanel() {
       setState(prev => ({
         ...prev,
         messages: [...prev.messages, errorMessage],
-        isLoading: false,
       }));
+      return false;
     }
-  }, [state.pendingToolCall]);
+  }, []);
 
-  // Handle canceling a tool call
-  const handleCancelToolCall = useCallback(() => {
-    if (!state.pendingToolCall) {
+  // Handle confirming a single tool call (first in queue)
+  const handleConfirmToolCall = useCallback(async (editedToolCall?: ToolCall) => {
+    const currentToolCall = state.pendingToolCalls[0];
+    const toolCall = editedToolCall || currentToolCall;
+    if (!toolCall) {
       return;
     }
 
-    // Log rejection
     const logEntry: SuggestionLogEntry = {
       timestamp: new Date().toISOString(),
-      tool_call: state.pendingToolCall,
+      tool_call: toolCall,
+      action: 'confirmed',
+    };
+
+    // Remove first item from queue
+    setState(prev => ({
+      ...prev,
+      suggestionLog: [...prev.suggestionLog, logEntry],
+      pendingToolCalls: prev.pendingToolCalls.slice(1),
+      isLoading: true,
+    }));
+
+    await executeToolCall(toolCall);
+
+    setState(prev => ({
+      ...prev,
+      isLoading: false,
+    }));
+  }, [state.pendingToolCalls, executeToolCall]);
+
+  // Handle confirming all pending tool calls at once
+  const handleConfirmAllToolCalls = useCallback(async () => {
+    if (state.pendingToolCalls.length === 0) {
+      return;
+    }
+
+    const allCalls = [...state.pendingToolCalls];
+
+    // Log all as confirmed and clear queue
+    const logEntries: SuggestionLogEntry[] = allCalls.map(tc => ({
+      timestamp: new Date().toISOString(),
+      tool_call: tc,
+      action: 'confirmed' as const,
+    }));
+
+    setState(prev => ({
+      ...prev,
+      suggestionLog: [...prev.suggestionLog, ...logEntries],
+      pendingToolCalls: [],
+      isLoading: true,
+    }));
+
+    // Execute all sequentially
+    for (const toolCall of allCalls) {
+      await executeToolCall(toolCall);
+    }
+
+    setState(prev => ({
+      ...prev,
+      isLoading: false,
+    }));
+  }, [state.pendingToolCalls, executeToolCall]);
+
+  // Handle canceling the current tool call (first in queue)
+  const handleCancelToolCall = useCallback(() => {
+    const currentToolCall = state.pendingToolCalls[0];
+    if (!currentToolCall) {
+      return;
+    }
+
+    const logEntry: SuggestionLogEntry = {
+      timestamp: new Date().toISOString(),
+      tool_call: currentToolCall,
       action: 'rejected',
     };
 
     setState(prev => ({
       ...prev,
       suggestionLog: [...prev.suggestionLog, logEntry],
-      pendingToolCall: null,
+      pendingToolCalls: prev.pendingToolCalls.slice(1),
     }));
 
-    // Add cancellation message
     const cancelMessage: ChatMessageType = {
       role: 'system',
       content: 'Action cancelled by user',
@@ -333,7 +384,39 @@ export function ChatPanel() {
       ...prev,
       messages: [...prev.messages, cancelMessage],
     }));
-  }, [state.pendingToolCall]);
+  }, [state.pendingToolCalls]);
+
+  // Handle canceling all pending tool calls
+  const handleCancelAllToolCalls = useCallback(() => {
+    if (state.pendingToolCalls.length === 0) {
+      return;
+    }
+
+    const logEntries: SuggestionLogEntry[] = state.pendingToolCalls.map(tc => ({
+      timestamp: new Date().toISOString(),
+      tool_call: tc,
+      action: 'rejected' as const,
+    }));
+
+    const count = state.pendingToolCalls.length;
+
+    setState(prev => ({
+      ...prev,
+      suggestionLog: [...prev.suggestionLog, ...logEntries],
+      pendingToolCalls: [],
+    }));
+
+    const cancelMessage: ChatMessageType = {
+      role: 'system',
+      content: `Cancelled ${count} pending action${count > 1 ? 's' : ''}`,
+      timestamp: new Date().toISOString(),
+    };
+
+    setState(prev => ({
+      ...prev,
+      messages: [...prev.messages, cancelMessage],
+    }));
+  }, [state.pendingToolCalls]);
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -426,11 +509,15 @@ export function ChatPanel() {
         </button>
       </div>
 
-      {state.pendingToolCall && (
+      {state.pendingToolCalls.length > 0 && (
         <ConfirmToolCallDialog
-          toolCall={state.pendingToolCall}
+          toolCall={state.pendingToolCalls[0]}
+          totalCount={state.pendingToolCalls.length}
+          currentIndex={0}
           onConfirm={handleConfirmToolCall}
           onCancel={handleCancelToolCall}
+          onConfirmAll={state.pendingToolCalls.length > 1 ? handleConfirmAllToolCalls : undefined}
+          onCancelAll={state.pendingToolCalls.length > 1 ? handleCancelAllToolCalls : undefined}
         />
       )}
     </div>

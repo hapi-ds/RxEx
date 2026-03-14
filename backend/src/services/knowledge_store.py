@@ -67,6 +67,20 @@ class KnowledgeStore:
         """
         self._cache[key] = (time.time(), value)
 
+
+    def invalidate_cache(self, key: str | None = None) -> None:
+        """
+        Invalidate cached data.
+
+        Args:
+            key: Specific cache key to invalidate, or None to clear all
+        """
+        if key is None:
+            self._cache.clear()
+        else:
+            self._cache.pop(key, None)
+
+
     async def get_relationship_types(self) -> list[str]:
         """
         Retrieve all valid relationship types from Neo4j schema.
@@ -214,6 +228,62 @@ class KnowledgeStore:
 
         return f"Available relationship types: {', '.join(relationships)}"
 
+
+    async def get_mind_nodes(self) -> list[dict[str, str]]:
+        """
+        Retrieve existing Mind nodes (uuid, title, mind_type) from Neo4j.
+
+        Results are cached for cache_ttl_seconds. Returns a compact list
+        so the AI can reference nodes by UUID when creating relationships.
+
+        Returns:
+            List of dicts with keys: uuid, title, mind_type
+        """
+        cached = self._get_cached("mind_nodes")
+        if cached is not None:
+            return cached
+
+        gc = GraphConnection()
+        cypher = (
+            "MATCH (m:Mind) "
+            "RETURN m.uuid AS uuid, m.title AS title, m.mind_type AS mind_type "
+            "ORDER BY m.title LIMIT 200"
+        )
+
+        try:
+            results = gc.engine.evaluate_query(cypher, {})
+            nodes: list[dict[str, str]] = []
+            if results and results.records_raw:
+                for record in results.records_raw:
+                    nodes.append({
+                        "uuid": record["uuid"],
+                        "title": record["title"],
+                        "mind_type": record.get("mind_type", "unknown"),
+                    })
+            self._set_cached("mind_nodes", nodes)
+            return nodes
+        except Exception:
+            return []
+
+    def format_mind_nodes(self, nodes: list[dict[str, str]]) -> str:
+        """
+        Format existing Mind nodes as structured text for prompt inclusion.
+
+        Args:
+            nodes: List of node dicts with uuid, title, mind_type
+
+        Returns:
+            Formatted string listing existing nodes with UUIDs
+        """
+        if not nodes:
+            return "Existing Mind nodes: None"
+
+        lines = ["Existing Mind nodes:"]
+        for node in nodes:
+            lines.append(f"  - [{node['mind_type']}] \"{node['title']}\" (uuid: {node['uuid']})")
+        return "\n".join(lines)
+
+
     def format_risks(self, risks: list[dict[str, Any]]) -> str:
         """
         Format risk information as structured text for prompt inclusion.
@@ -285,19 +355,31 @@ class KnowledgeStore:
         relationship_types = await self.get_relationship_types()
         node_types = await self.get_mind_node_types()
         risks = await self.get_risk_analyses()
+        mind_nodes = await self.get_mind_nodes()
 
         # Format each section
         relationships_text = self.format_relationships(relationship_types)
         node_types_text = f"Available Mind node types: {', '.join(node_types)}" if node_types else "Available Mind node types: None"
         risks_text = self.format_risks(risks)
+        mind_nodes_text = self.format_mind_nodes(mind_nodes)
 
         # Combine into structured prompt
         sections = [
             "# Project Context",
             "",
+            "You are an AI assistant for a Mind-based project management system.",
+            "When the user asks you to create a node, always use the exact mind_type from the available types listed below.",
+            "Do NOT substitute one type for another (e.g., do not use 'resource' when the user asks for 'department').",
+            "When creating relationships, look up the UUIDs from the 'Existing Nodes' section below. NEVER ask the user for UUIDs.",
+            "If the user says 'connect all departments to the company', find all department nodes and the company node from the list below and create relationships using their UUIDs.",
+            "If the user asks to create nodes AND connect them, create the nodes first. The user will confirm each node creation, and then you can create relationships using the new UUIDs.",
+            "",
             "## Graph Schema",
             relationships_text,
             node_types_text,
+            "",
+            "## Existing Nodes",
+            mind_nodes_text,
             "",
             "## " + risks_text,
         ]

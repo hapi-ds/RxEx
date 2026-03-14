@@ -1,84 +1,79 @@
 /**
  * ConfirmToolCallDialog Component
- * Confirmation dialog for AI-suggested graph modifications
- * 
- * Features:
- * - Modal backdrop with click-to-close
- * - Escape key to cancel
- * - Displays tool name and all arguments
- * - Follows existing ConfirmDialog pattern
+ * Editable confirmation dialog for AI-suggested graph modifications
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ToolCall } from '../../types/chat';
 import './ConfirmToolCallDialog.css';
 
 export interface ConfirmToolCallDialogProps {
   toolCall: ToolCall;
-  onConfirm: () => void;
+  totalCount: number;
+  currentIndex: number;
+  onConfirm: (editedToolCall: ToolCall) => void;
   onCancel: () => void;
+  onConfirmAll?: () => void;
+  onCancelAll?: () => void;
 }
 
-/**
- * ConfirmToolCallDialog Component
- * Displays a confirmation dialog for AI-suggested tool calls
- */
+const LABEL_MAP: Record<string, string> = {
+  mind_type: 'Type',
+  title: 'Title',
+  description: 'Description',
+  status: 'Status',
+  source_uuid: 'Source UUID',
+  target_uuid: 'Target UUID',
+  relationship_type: 'Relationship Type',
+};
+
+const formatToolName = (name: string): string =>
+  name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
 export function ConfirmToolCallDialog({
   toolCall,
+  totalCount,
+  currentIndex,
   onConfirm,
   onCancel,
+  onConfirmAll,
+  onCancelAll,
 }: ConfirmToolCallDialogProps) {
-  // Handle escape key to cancel
+  const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(
+    () => ({ ...toolCall.arguments })
+  );
+
+  // Reset edited args when toolCall changes (advancing through queue)
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onCancel();
-      }
+    setEditedArgs({ ...toolCall.arguments });
+  }, [toolCall]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
     };
-
     document.addEventListener('keydown', handleEscape);
-    // Prevent body scroll when dialog is open
     document.body.style.overflow = 'hidden';
-
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
   }, [onCancel]);
 
-  // Handle backdrop click
-  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) {
-      onCancel();
-    }
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onCancel();
   };
 
-  // Format tool name for display
-  const formatToolName = (name: string): string => {
-    return name
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+  const handleFieldChange = (key: string, value: string) => {
+    setEditedArgs(prev => ({ ...prev, [key]: value }));
   };
 
-  // Format argument key for display
-  const formatArgKey = (key: string): string => {
-    return key
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+  const handleConfirm = () => {
+    onConfirm({ tool_name: toolCall.tool_name, arguments: editedArgs });
   };
 
-  // Format argument value for display
-  const formatArgValue = (value: unknown): string => {
-    if (value === null || value === undefined) {
-      return 'N/A';
-    }
-    if (typeof value === 'object') {
-      return JSON.stringify(value, null, 2);
-    }
-    return String(value);
-  };
+  const isMultiline = (value: unknown): boolean =>
+    typeof value === 'string' && value.length > 60;
 
   return (
     <div
@@ -87,18 +82,22 @@ export function ConfirmToolCallDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-tool-call-title"
-      aria-describedby="confirm-tool-call-description"
     >
       <div className="confirm-tool-call-content">
         <div className="confirm-tool-call-header">
           <h2 id="confirm-tool-call-title" className="confirm-tool-call-title">
             Confirm AI Suggestion
           </h2>
+          {totalCount > 1 && (
+            <span className="batch-indicator">
+              {currentIndex + 1} of {totalCount} actions
+            </span>
+          )}
         </div>
 
         <div className="confirm-tool-call-body">
-          <p id="confirm-tool-call-description" className="confirm-tool-call-description">
-            The AI assistant suggests the following action:
+          <p className="confirm-tool-call-description">
+            Review and edit the suggested action before confirming:
           </p>
 
           <div className="tool-call-details">
@@ -109,10 +108,28 @@ export function ConfirmToolCallDialog({
             <div className="tool-call-arguments">
               <strong>Details:</strong>
               <dl className="arguments-list">
-                {Object.entries(toolCall.arguments).map(([key, value]) => (
+                {Object.entries(editedArgs).map(([key, value]) => (
                   <div key={key} className="argument-item">
-                    <dt className="argument-key">{formatArgKey(key)}:</dt>
-                    <dd className="argument-value">{formatArgValue(value)}</dd>
+                    <dt className="argument-key">
+                      {LABEL_MAP[key] || key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}:
+                    </dt>
+                    <dd className="argument-value">
+                      {isMultiline(value) ? (
+                        <textarea
+                          className="argument-input argument-textarea"
+                          value={String(value ?? '')}
+                          onChange={e => handleFieldChange(key, e.target.value)}
+                          rows={3}
+                        />
+                      ) : (
+                        <input
+                          className="argument-input"
+                          type="text"
+                          value={String(value ?? '')}
+                          onChange={e => handleFieldChange(key, e.target.value)}
+                        />
+                      )}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -121,19 +138,22 @@ export function ConfirmToolCallDialog({
         </div>
 
         <div className="confirm-tool-call-footer">
-          <button
-            className="btn btn-secondary"
-            onClick={onCancel}
-            autoFocus
-          >
+          {onCancelAll && (
+            <button className="btn btn-secondary" onClick={onCancelAll}>
+              Cancel All
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={onConfirm}
-          >
+          <button className="btn btn-primary" onClick={handleConfirm} autoFocus>
             Confirm
           </button>
+          {onConfirmAll && (
+            <button className="btn btn-primary" onClick={onConfirmAll}>
+              Confirm All ({totalCount})
+            </button>
+          )}
         </div>
       </div>
     </div>

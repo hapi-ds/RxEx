@@ -228,8 +228,26 @@ export const relationshipsAPI = {
    * @returns Promise with the created relationship
    */
   create: async (data: Omit<Relationship, 'id'>): Promise<Relationship> => {
-    const response = await api.post<Relationship>('/api/v1/relationships', data);
-    return response.data;
+    const response = await api.post<{
+      source_uuid: string;
+      target_uuid: string;
+      relationship_type: string;
+      created_at: string;
+    }>('/api/v1/relationships', null, {
+      params: {
+        from_uuid: data.source,
+        to_uuid: data.target,
+        relationship_type: data.type,
+      },
+    });
+    const rel = response.data;
+    return {
+      id: `${rel.source_uuid}-${rel.target_uuid}-${rel.relationship_type}`,
+      type: rel.relationship_type.toUpperCase() as RelationshipType,
+      source: rel.source_uuid,
+      target: rel.target_uuid,
+      properties: {},
+    };
   },
 
   /**

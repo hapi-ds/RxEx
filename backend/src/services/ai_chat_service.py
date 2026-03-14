@@ -105,19 +105,29 @@ class AIChatService:
 
         return messages
 
-    def _build_tools(self) -> list[dict]:
+    async def _build_tools(self) -> list[dict]:
         """
         Build function/tool definitions for graph operations.
 
-        Defines two tools:
-        - create_mind_node: Create a new Mind node in the project graph
-        - create_relationship: Create a relationship between two existing Mind nodes
+        Dynamically fetches available mind node types and relationship types
+        from the KnowledgeStore so the AI knows the full schema.
 
         Returns:
             List of tool definition dictionaries in OpenAI function calling format
 
         **Validates: Requirements 11.1, 11.2, 11.3**
         """
+        # Fetch available types from Neo4j via KnowledgeStore
+        node_types = await self.knowledge_store.get_mind_node_types()
+        relationship_types = await self.knowledge_store.get_relationship_types()
+
+        # Normalize to lowercase for the enum values
+        node_type_enum = [t.lower() for t in node_types] if node_types else [
+            "project", "task", "risk", "knowledge", "requirement", "resource",
+        ]
+        rel_type_enum = [r.lower() for r in relationship_types] if relationship_types else [
+            "contains", "depends_on", "assigned_to", "relates_to", "implements", "mitigates",
+        ]
         tools = [
             {
                 "type": "function",
@@ -129,14 +139,7 @@ class AIChatService:
                         "properties": {
                             "mind_type": {
                                 "type": "string",
-                                "enum": [
-                                    "project",
-                                    "task",
-                                    "risk",
-                                    "knowledge",
-                                    "requirement",
-                                    "resource",
-                                ],
+                                "enum": node_type_enum,
                                 "description": "Type of Mind node to create",
                             },
                             "title": {
@@ -149,8 +152,8 @@ class AIChatService:
                             },
                             "status": {
                                 "type": "string",
-                                "enum": ["active", "inactive", "deleted"],
-                                "description": "Status of the Mind node",
+                                "enum": ["draft", "active", "done", "archived", "deleted"],
+                                "description": "Status of the Mind node (default: draft)",
                             },
                         },
                         "required": ["mind_type", "title"],
@@ -177,14 +180,7 @@ class AIChatService:
                             },
                             "relationship_type": {
                                 "type": "string",
-                                "enum": [
-                                    "contains",
-                                    "depends_on",
-                                    "assigned_to",
-                                    "relates_to",
-                                    "implements",
-                                    "mitigates",
-                                ],
+                                "enum": rel_type_enum,
                                 "description": "Type of relationship to create",
                             },
                         },
@@ -265,6 +261,9 @@ class AIChatService:
         )
 
         try:
+            # Invalidate node cache so the AI always sees freshly created nodes
+            self.knowledge_store.invalidate_cache("mind_nodes")
+
             # Get context prompt from knowledge store
             context_prompt = await self.knowledge_store.generate_context_prompt()
 
@@ -272,7 +271,7 @@ class AIChatService:
             messages = self._build_messages(user_message, context_prompt, conversation_history)
 
             # Build tools array
-            tools = self._build_tools()
+            tools = await self._build_tools()
 
             # Route to appropriate provider
             if self.settings.ai_provider in ("openai", "lm-studio", "custom"):
@@ -373,6 +372,10 @@ class AIChatService:
                         return
 
                     # Parse SSE stream
+                    # Accumulate tool call data across chunks
+                    # (name arrives in first chunk, arguments stream incrementally)
+                    pending_tool_calls: dict[int, dict[str, str]] = {}
+
                     async for line in response.aiter_lines():
                         if not line.strip():
                             continue
@@ -396,26 +399,17 @@ class AIChatService:
                                         "content": delta["content"],
                                     }
 
-                                # Handle tool calls (function calling)
+                                # Accumulate tool call chunks
                                 if "tool_calls" in delta:
-                                    tool_calls = delta["tool_calls"]
-                                    for tool_call in tool_calls:
-                                        if tool_call.get("function"):
-                                            function = tool_call["function"]
-                                            tool_name = function.get("name")
-                                            arguments_str = function.get("arguments", "{}")
-                                            try:
-                                                arguments = json.loads(arguments_str)
-                                                yield {
-                                                    "type": "function_call",
-                                                    "tool_name": tool_name,
-                                                    "arguments": arguments,
-                                                }
-                                            except json.JSONDecodeError:
-                                                logger.warning(
-                                                    "Failed to parse tool call arguments",
-                                                    extra={"arguments": arguments_str},
-                                                )
+                                    for tool_call in delta["tool_calls"]:
+                                        idx = tool_call.get("index", 0)
+                                        if idx not in pending_tool_calls:
+                                            pending_tool_calls[idx] = {"name": "", "arguments": ""}
+                                        func = tool_call.get("function", {})
+                                        if func.get("name"):
+                                            pending_tool_calls[idx]["name"] = func["name"]
+                                        if func.get("arguments"):
+                                            pending_tool_calls[idx]["arguments"] += func["arguments"]
 
                             except json.JSONDecodeError:
                                 logger.warning(
@@ -423,6 +417,22 @@ class AIChatService:
                                     extra={"data": data_str},
                                 )
                                 continue
+
+                    # Emit accumulated tool calls after stream completes
+                    for _idx, tc in sorted(pending_tool_calls.items()):
+                        if tc["name"]:
+                            try:
+                                arguments = json.loads(tc["arguments"]) if tc["arguments"] else {}
+                                yield {
+                                    "type": "function_call",
+                                    "tool_name": tc["name"],
+                                    "arguments": arguments,
+                                }
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "Failed to parse accumulated tool call arguments",
+                                    extra={"name": tc["name"], "arguments": tc["arguments"]},
+                                )
 
             yield {"type": "done"}
 
@@ -535,6 +545,10 @@ class AIChatService:
                         return
 
                     # Parse SSE stream
+                    # Accumulate tool use data across chunks
+                    # (name arrives in content_block_start, input streams via input_json_delta)
+                    pending_tool_calls: dict[int, dict[str, Any]] = {}
+
                     async for line in response.aiter_lines():
                         if not line.strip():
                             continue
@@ -555,18 +569,40 @@ class AIChatService:
                                                 "type": "message_chunk",
                                                 "content": text,
                                             }
+                                    # Accumulate tool input JSON chunks
+                                    elif delta.get("type") == "input_json_delta":
+                                        idx = data.get("index", 0)
+                                        if idx in pending_tool_calls:
+                                            pending_tool_calls[idx]["arguments"] += delta.get("partial_json", "")
 
-                                # Handle tool use (function calling)
+                                # Handle tool use start (captures name, input arrives later)
                                 elif event_type == "content_block_start":
                                     content_block = data.get("content_block", {})
                                     if content_block.get("type") == "tool_use":
-                                        tool_name = content_block.get("name")
-                                        tool_input = content_block.get("input", {})
-                                        yield {
-                                            "type": "function_call",
-                                            "tool_name": tool_name,
-                                            "arguments": tool_input,
+                                        idx = data.get("index", 0)
+                                        pending_tool_calls[idx] = {
+                                            "name": content_block.get("name", ""),
+                                            "arguments": "",
                                         }
+
+                                # Emit tool call when its content block stops
+                                elif event_type == "content_block_stop":
+                                    idx = data.get("index", 0)
+                                    if idx in pending_tool_calls:
+                                        tc = pending_tool_calls.pop(idx)
+                                        if tc["name"]:
+                                            try:
+                                                arguments = json.loads(tc["arguments"]) if tc["arguments"] else {}
+                                                yield {
+                                                    "type": "function_call",
+                                                    "tool_name": tc["name"],
+                                                    "arguments": arguments,
+                                                }
+                                            except json.JSONDecodeError:
+                                                logger.warning(
+                                                    "Failed to parse Anthropic tool call arguments",
+                                                    extra={"name": tc["name"], "arguments": tc["arguments"]},
+                                                )
 
                             except json.JSONDecodeError:
                                 logger.warning(
@@ -574,6 +610,22 @@ class AIChatService:
                                     extra={"data": data_str},
                                 )
                                 continue
+
+                    # Emit any remaining tool calls
+                    for _idx, tc in sorted(pending_tool_calls.items()):
+                        if tc["name"]:
+                            try:
+                                arguments = json.loads(tc["arguments"]) if tc["arguments"] else {}
+                                yield {
+                                    "type": "function_call",
+                                    "tool_name": tc["name"],
+                                    "arguments": arguments,
+                                }
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "Failed to parse Anthropic tool call arguments",
+                                    extra={"name": tc["name"], "arguments": tc["arguments"]},
+                                )
 
             yield {"type": "done"}
 

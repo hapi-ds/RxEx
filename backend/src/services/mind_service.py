@@ -125,6 +125,22 @@ class MindService:
         if mind_data.type_specific_attributes:
             node_data.update(mind_data.type_specific_attributes)
 
+        # Auto-fill missing required type-specific fields with sensible defaults
+        # This allows the AI chat and generic API to create any mind type
+        # without needing to know every required field upfront
+        base_fields = set(BaseMind.model_fields.keys())
+        for field_name, field_info in model_class.model_fields.items():
+            if field_name in base_fields or field_name == "__primarylabel__":
+                continue
+            if field_name in node_data:
+                continue
+            if not field_info.is_required():
+                continue
+            # Generate a sensible default based on field type/name
+            node_data[field_name] = self._generate_default_value(
+                field_name, field_info, mind_data.title
+            )
+
         # Create and save the Mind node using neontology
         mind_node = model_class(**node_data)
         mind_node.create()  # create() modifies the node in place and returns self
@@ -189,6 +205,76 @@ class MindService:
                     type_specific[key] = value
 
         return type_specific
+
+    @staticmethod
+    def _generate_default_value(
+        field_name: str, field_info: Any, title: str
+    ) -> Any:
+        """
+        Generate a sensible default value for a missing required type-specific field.
+
+        Args:
+            field_name: Name of the field
+            field_info: Pydantic FieldInfo object
+            title: Title of the mind being created (used for generating contextual defaults)
+
+        Returns:
+            A default value appropriate for the field type
+        """
+        from datetime import date, datetime, timezone
+        from enum import Enum
+
+        annotation = field_info.annotation
+
+        # Unwrap Optional types
+        origin = getattr(annotation, "__origin__", None)
+        if origin is type(None):
+            return None
+
+        # Handle enum types — use first value
+        if isinstance(annotation, type) and issubclass(annotation, Enum):
+            return list(annotation)[0]
+
+        # Handle common field names with contextual defaults
+        defaults_by_name: dict[str, Any] = {
+            "department_code": title[:20].upper().replace(" ", "_"),
+            "industry": "General",
+            "category": "General",
+            "content": title,
+            "criteria_text": title,
+            "verification_method": "manual",
+            "verification_status": "pending",
+            "failure_mode": title,
+            "effects": title,
+            "causes": "TBD",
+            "sender": "system@example.com",
+            "subject": title,
+            "schedule_id": "auto-generated",
+            "assignee": "unassigned",
+        }
+        if field_name in defaults_by_name:
+            return defaults_by_name[field_name]
+
+        # Handle by type annotation
+        if annotation is str or annotation == str:
+            return "TBD"
+        if annotation is int or annotation == int:
+            return 0
+        if annotation is float or annotation == float:
+            return 0.0
+        if annotation is bool or annotation == bool:
+            return False
+        if annotation is list or (origin is list):
+            return []
+        if annotation is dict or (origin is dict):
+            return {}
+        if annotation is date:
+            return date.today()
+        if annotation is datetime:
+            return datetime.now(timezone.utc)
+
+        return "TBD"
+
 
     async def get_mind(self, uuid: UUID) -> MindResponse:
         """
