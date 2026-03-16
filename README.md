@@ -78,13 +78,17 @@ See [`docs/`](docs/) for detailed docs:
 - [Full README](docs/README_FULL.md) — architecture, API examples, dev workflows, security
 - [UI Overview](docs/UI.md) — pages, screenshots, navigation
 - [AI Features](docs/AI.md) — skill system, AI chat, provider configuration
+- [PM Features](docs/PM.md) — Task scheduling, Gantt, Burn-Down, PDF Project Report, Bookings, Sprints
 
 ## Next/Planned
 
-- Project Managment: Schedule of Tasks, Gantt, and some helper for Agile working, a project report output
 - Requirment Managment: Output of URS, Trace-Matrix, ...
 - Risk Management: Output of a p/dFMEA in XLSX format
 - Adapted skills to be (more) usefull
+
+### Enhancements
+
+- Project Managment: Booking app for phone, easy create relations (better sprint planning)
 
 ## Tech Stack
 
