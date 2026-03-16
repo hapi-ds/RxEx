@@ -8,11 +8,16 @@ history, relationships, and queries.
 **Validates: Requirements 3.1-3.7**
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
 from ..exceptions import MindNotFoundError
+
+logger = logging.getLogger(__name__)
 from ..models.mind import BaseMind
 from ..models.mind_types import (
     AcceptanceCriteria,
@@ -341,7 +346,20 @@ class MindService:
 
                     try:
                         mind_node = model_class(**node_data)
-                    except Exception:
+                    except ValidationError as e:
+                        node_uuid = node_data.get("uuid", "<unavailable>")
+                        for err in e.errors():
+                            field = err.get("loc", ("<unavailable>",))
+                            value = err.get("input", "<unavailable>")
+                            constraint = err.get("type", "<unavailable>")
+                            logger.warning(
+                                "Skipped %s node %s: %s = %s violated %s",
+                                type_name,
+                                node_uuid,
+                                field,
+                                value,
+                                constraint,
+                            )
                         continue
                     mind_type = type_name
                     break
@@ -1229,7 +1247,26 @@ class MindService:
                             _ = model_class(**node_data)
                             mind_type = type_name
                             break
-                        except Exception:
+                        except ValidationError as e:
+                            node_uuid = node_data.get("uuid", "<unavailable>")
+                            node_labels = (
+                                list(node_data_raw.labels)
+                                if hasattr(node_data_raw, "labels")
+                                else "<unavailable>"
+                            )
+                            for err in e.errors():
+                                field = err.get("loc", ("<unavailable>",))
+                                value = err.get("input", "<unavailable>")
+                                constraint = err.get("type", "<unavailable>")
+                                logger.warning(
+                                    "Skipped %s node %s (labels=%s): %s = %s violated %s",
+                                    type_name,
+                                    node_uuid,
+                                    node_labels,
+                                    field,
+                                    value,
+                                    constraint,
+                                )
                             continue
 
                 if mind_type is None:
@@ -1242,7 +1279,26 @@ class MindService:
                 # Instantiate the model — skip nodes that fail validation
                 try:
                     mind_node = model_class(**node_data)
-                except Exception:
+                except ValidationError as e:
+                    node_uuid = node_data.get("uuid", "<unavailable>")
+                    node_labels = (
+                        list(node_data_raw.labels)
+                        if hasattr(node_data_raw, "labels")
+                        else "<unavailable>"
+                    )
+                    for err in e.errors():
+                        field = err.get("loc", ("<unavailable>",))
+                        value = err.get("input", "<unavailable>")
+                        constraint = err.get("type", "<unavailable>")
+                        logger.warning(
+                            "Skipped %s node %s (labels=%s): %s = %s violated %s",
+                            mind_type,
+                            node_uuid,
+                            node_labels,
+                            field,
+                            value,
+                            constraint,
+                        )
                     continue
 
                 # Create MindResponse

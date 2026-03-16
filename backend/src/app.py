@@ -1,10 +1,10 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.config.config import settings
 from src.database.database import initiate_database
 from src.exceptions import (
     MindDatabaseError,
@@ -13,6 +13,7 @@ from src.exceptions import (
     MindValidationError,
     RateLimitError,
 )
+from src.logging_config import setup_logging
 from src.routes.minds import (
     generic_exception_handler,
     mind_database_handler,
@@ -35,13 +36,25 @@ from src.routes.schedules import router as schedules_router
 from src.routes.reports import router as reports_router
 from src.websocket.routes import router as websocket_router
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle.
+
+    Args:
+        app: The FastAPI application instance.
+    """
+    setup_logging(settings)
+    logger.info(
+        "Application starting: log_dir=%s, log_level=%s",
+        settings.log_dir,
+        settings.log_level,
+    )
     initiate_database()
     yield
-    # You can also close DB connections here if needed
-    print("App shutdown complete.")
+    logger.info("App shutdown complete.")
 
 
 app = FastAPI(
@@ -109,12 +122,9 @@ app.add_middleware(
 )
 
 
-FORMAT = "%(levelname)s: %(asctime)-15s: %(filename)s: %(funcName)s: %(module)s: %(message)s"
-logging.basicConfig(filename="example.log", encoding="utf-8", level=logging.DEBUG, format=FORMAT)
-
-
 @app.get("/", tags=["Root"])
 async def read_root():
+    """Health check and welcome endpoint."""
     return {"message": "Welcome to this fantastic app."}
 
 

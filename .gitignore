@@ -170,6 +170,9 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Logs directory (Docker bind mount)
+logs/
+
 # PyPI configuration file
 .pypirc
 

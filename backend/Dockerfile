@@ -13,6 +13,8 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 # Development stage
 FROM base AS development
 
+RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
+
 USER appuser
 
 # Copy dependency files
@@ -32,6 +34,8 @@ CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "808
 
 # Production stage
 FROM base AS production
+
+RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
 
 USER appuser
 

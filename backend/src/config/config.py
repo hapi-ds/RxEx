@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # Logging Configuration
     log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     log_file: str = Field(default="app.log", description="Log file path")
+    log_dir: str = Field(default="/app/logs", description="Directory for log files")
+    log_max_size_mb: int = Field(default=10, description="Maximum log file size in MB before rotation")
+    log_backup_count: int = Field(default=5, description="Number of rotated log file backups to retain")
 
     # AI Provider Configuration
     ai_provider: str = Field(default="none", description="AI provider type (none, openai, anthropic, lm-studio, custom)")
@@ -65,6 +68,22 @@ class Settings(BaseSettings):
         if v_upper not in valid_levels:
             raise ValueError(f"log_level must be one of {valid_levels}, got {v}")
         return v_upper
+
+    @field_validator("log_max_size_mb")
+    @classmethod
+    def validate_log_max_size_mb(cls, v: int) -> int:
+        """Validate log max size is positive."""
+        if v <= 0:
+            raise ValueError("log_max_size_mb must be positive")
+        return v
+
+    @field_validator("log_backup_count")
+    @classmethod
+    def validate_log_backup_count(cls, v: int) -> int:
+        """Validate log backup count is non-negative."""
+        if v < 0:
+            raise ValueError("log_backup_count must be non-negative")
+        return v
 
     @field_validator("jwt_expiration_minutes")
     @classmethod

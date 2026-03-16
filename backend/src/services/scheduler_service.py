@@ -13,10 +13,14 @@ Enhanced with:
 - Computed aggregates on ScheduleHistory (global_start, global_end, total_effort, total_cost)
 """
 
+import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from neontology import GraphConnection
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class ScheduleResult:
@@ -185,8 +189,12 @@ class SchedulerService:
                 record = results.records_raw[0]
                 return Project(**dict(record["p"]))
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(
+                "Failed to retrieve Project node %s: %s",
+                project_uuid,
+                e,
+            )
 
         return None
 
@@ -228,7 +236,19 @@ class SchedulerService:
                 try:
                     task = Task(**task_data)
                     tasks.append(task)
-                except Exception:
+                except ValidationError as e:
+                    task_uuid = task_data.get("uuid", "<unknown>")
+                    for error in e.errors():
+                        field = ".".join(str(loc) for loc in error.get("loc", ()))
+                        value = error.get("input", "<unavailable>")
+                        constraint = error.get("type", "<unknown>")
+                        logger.warning(
+                            "Skipped Task node %s: %s = %s violated %s",
+                            task_uuid,
+                            field or "<unavailable>",
+                            value,
+                            constraint,
+                        )
                     continue
 
         return tasks

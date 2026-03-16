@@ -143,3 +143,44 @@ def test_cors_origins_from_env():
     # Clean up
     if 'CORS_ORIGINS' in os.environ:
         del os.environ['CORS_ORIGINS']
+
+
+def test_logging_new_fields_defaults():
+    """Test that new logging fields exist with correct defaults."""
+    settings = Settings()
+
+    assert settings.log_dir == "/app/logs"
+    assert settings.log_max_size_mb == 10
+    assert settings.log_backup_count == 5
+
+
+def test_log_max_size_mb_validation():
+    """Test that log_max_size_mb must be positive."""
+    # Valid positive value
+    settings = Settings(log_max_size_mb=1)
+    assert settings.log_max_size_mb == 1
+
+    # Zero should fail
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(log_max_size_mb=0)
+    assert "log_max_size_mb must be positive" in str(exc_info.value)
+
+    # Negative should fail
+    with pytest.raises(ValidationError):
+        Settings(log_max_size_mb=-5)
+
+
+def test_log_backup_count_validation():
+    """Test that log_backup_count must be non-negative."""
+    # Zero is valid (non-negative)
+    settings = Settings(log_backup_count=0)
+    assert settings.log_backup_count == 0
+
+    # Positive is valid
+    settings = Settings(log_backup_count=3)
+    assert settings.log_backup_count == 3
+
+    # Negative should fail
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(log_backup_count=-1)
+    assert "log_backup_count must be non-negative" in str(exc_info.value)

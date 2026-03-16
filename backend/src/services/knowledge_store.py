@@ -8,12 +8,15 @@ types, node types) and risk data, with simple in-memory caching for schema data.
 **Validates: Requirements 2.1, 2.2, 2.3, 2.6**
 """
 
+import logging
 import time
 from typing import Any, Optional
 
 from neontology import GraphConnection
 
 from ..config.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeStore:
@@ -118,8 +121,10 @@ class KnowledgeStore:
             return relationship_types
 
         except Exception as e:
-            # If query fails, return empty list
-            # Logging would happen here in production
+            logger.warning(
+                "get_relationship_types: failed to query relationship types: %s",
+                e,
+            )
             return []
 
     async def get_mind_node_types(self) -> list[str]:
@@ -159,8 +164,10 @@ class KnowledgeStore:
             return node_types
 
         except Exception as e:
-            # If query fails, return empty list
-            # Logging would happen here in production
+            logger.warning(
+                "get_mind_node_types: failed to query node labels: %s",
+                e,
+            )
             return []
 
     async def get_risk_analyses(self) -> list[dict[str, Any]]:
@@ -207,8 +214,10 @@ class KnowledgeStore:
             return risks
 
         except Exception as e:
-            # If query fails, return empty list
-            # Logging would happen here in production
+            logger.warning(
+                "get_risk_analyses: failed to query risk nodes: %s",
+                e,
+            )
             return []
 
     def format_relationships(self, relationships: list[str]) -> str:
@@ -269,7 +278,11 @@ class KnowledgeStore:
                     })
             self._set_cached("mind_nodes", nodes)
             return nodes
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "get_mind_nodes: failed to query mind nodes: %s",
+                e,
+            )
             return []
 
     def format_mind_nodes(self, nodes: list[dict[str, str]]) -> str:
@@ -350,7 +363,11 @@ class KnowledgeStore:
                         "content": record["content"],
                     })
             return skills
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "get_enabled_skills: failed to query enabled skills: %s",
+                e,
+            )
             return []
 
     def format_skills(self, skills: list[dict[str, str]]) -> str:
