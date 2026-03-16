@@ -492,7 +492,7 @@ class Resource(BaseMind):
         default=None, description="Optional email address for the resource"
     )
     workinghours_max_per_week: float = Field(
-        default=40.0, ge=0.0, le=100.0, description="Maximal working hours per week (0.0-100.0)"
+        default=40.0, ge=0.0, description="Maximal working hours per week"
     )
     workinghours_per_year: float = Field(
         default=1700.0, ge=0.0, description="Working hours per year"
