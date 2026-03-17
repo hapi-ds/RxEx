@@ -25,7 +25,9 @@ export type RelationshipType =
   | 'SCHEDULED'
   | 'TO'
   | 'FOR'
-  | 'REFINES';
+  | 'REFINES'
+  | 'CAN_OCCUR'
+  | 'LEAD_TO';
 
 /**
  * Edge styling configuration based on relationship type
@@ -42,6 +44,8 @@ const EDGE_STYLES: Record<RelationshipType, { color: string; strokeWidth: number
   TO: { color: '#6b7280', strokeWidth: 1.5 }, // Gray - general direction
   FOR: { color: '#6b7280', strokeWidth: 1.5 }, // Gray - general purpose
   REFINES: { color: '#ec4899', strokeWidth: 2 }, // Pink - refinement
+  CAN_OCCUR: { color: '#d97706', strokeWidth: 2.5 }, // Amber - FMEA risk occurrence
+  LEAD_TO: { color: '#dc2626', strokeWidth: 2.5 }, // Crimson/Red - FMEA failure chain
 };
 
 /**
@@ -131,20 +135,29 @@ export const CustomEdge = memo(({ id, sourceX, sourceY, targetX, targetY, source
         style={{ cursor: 'pointer' }}
       />
 
-      {/* Optional: Render edge label */}
-      <EdgeLabelRenderer>
-        <div
-          style={{
-            position: 'absolute',
-            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-            fontSize: 10,
-            pointerEvents: 'all',
-          }}
-          className="nodrag nopan"
-        >
-          {/* Label can be added here if needed */}
-        </div>
-      </EdgeLabelRenderer>
+      {/* Render edge label for CAN_OCCUR and LEAD_TO */}
+      {(relationshipType === 'CAN_OCCUR' || relationshipType === 'LEAD_TO') && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              fontSize: 9,
+              fontWeight: 600,
+              color: style.color,
+              backgroundColor: 'rgba(255,255,255,0.85)',
+              padding: '1px 5px',
+              borderRadius: 3,
+              border: `1px solid ${style.color}`,
+              pointerEvents: 'all',
+              whiteSpace: 'nowrap',
+            }}
+            className="nodrag nopan"
+          >
+            {relationshipType}
+          </div>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 });

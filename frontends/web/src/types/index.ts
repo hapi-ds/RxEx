@@ -86,7 +86,9 @@ export type RelationshipType =
   | 'TO'
   | 'FOR'
   | 'REFINES'
-  | 'HAS_SCHEDULED';
+  | 'HAS_SCHEDULED'
+  | 'CAN_OCCUR'
+  | 'LEAD_TO';
 
 /**
  * Relationship entity representing connections between Mind nodes

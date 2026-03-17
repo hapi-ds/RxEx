@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dataAPI, skillsAPI, mindsAPI } from '../services/api';
+import { dataAPI, skillsAPI, mindsAPI, fmeaAPI } from '../services/api';
 import type { SaveFileData } from '../types';
 import type { Mind } from '../types/generated';
 import './Dashboard.css';
@@ -30,6 +30,10 @@ export function Dashboard(): JSX.Element {
   const [projects, setProjects] = useState<Mind[]>([]);
   const [selectedClassicProject, setSelectedClassicProject] = useState('');
   const [selectedAgileProject, setSelectedAgileProject] = useState('');
+
+  // FMEA card state
+  const [fmeaLoading, setFmeaLoading] = useState<string | null>(null);
+  const [fmeaError, setFmeaError] = useState<string | null>(null);
 
   const loadSkillCount = useCallback(async (): Promise<void> => {
     try {
@@ -134,6 +138,40 @@ export function Dashboard(): JSX.Element {
   };
 
   const isDataBusy = saveLoading || readLoading || clearLoading;
+
+  const handleFmeaDownload = async (fmeaType: string, label: string): Promise<void> => {
+    setFmeaLoading(fmeaType);
+    setFmeaError(null);
+    try {
+      const blob = await fmeaAPI.downloadReport(fmeaType);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fmea_report_${fmeaType}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.message.includes('404')) {
+          setFmeaError('No FMEA data available. Load example data first.');
+        } else if (err.message.includes('400')) {
+          setFmeaError('Invalid report type.');
+        } else if (err.message.includes('500')) {
+          setFmeaError('Report generation failed. Please try again.');
+        } else {
+          setFmeaError(err.message || 'Network error. Check your connection.');
+        }
+      } else {
+        setFmeaError('Network error. Check your connection.');
+      }
+    } finally {
+      setFmeaLoading(null);
+    }
+  };
+
+  const isFmeaBusy = fmeaLoading !== null;
 
   return (
     <div className="dashboard-container">
@@ -245,6 +283,43 @@ export function Dashboard(): JSX.Element {
               Open Agile View
             </button>
           </div>
+        </section>
+
+        {/* FMEA Risk Analysis card */}
+        <section className="dashboard-card">
+          <h3>FMEA Risk Analysis</h3>
+          <p>Download Failure Mode and Effects Analysis reports as XLSX files.</p>
+          <div className="card-actions">
+            <button
+              onClick={() => handleFmeaDownload('design', 'Design FMEA')}
+              disabled={isFmeaBusy}
+              className="btn-primary"
+            >
+              {fmeaLoading === 'design' ? 'Downloading…' : 'Design FMEA'}
+            </button>
+            <button
+              onClick={() => handleFmeaDownload('process', 'Process FMEA')}
+              disabled={isFmeaBusy}
+              className="btn-primary"
+            >
+              {fmeaLoading === 'process' ? 'Downloading…' : 'Process FMEA'}
+            </button>
+            <button
+              onClick={() => handleFmeaDownload('iso14971', 'ISO 14971')}
+              disabled={isFmeaBusy}
+              className="btn-primary"
+            >
+              {fmeaLoading === 'iso14971' ? 'Downloading…' : 'ISO 14971'}
+            </button>
+            <button
+              onClick={() => handleFmeaDownload('general', 'General FMEA')}
+              disabled={isFmeaBusy}
+              className="btn-primary"
+            >
+              {fmeaLoading === 'general' ? 'Downloading…' : 'General FMEA'}
+            </button>
+          </div>
+          {fmeaError && <p className="card-error">{fmeaError}</p>}
         </section>
       </div>
     </div>

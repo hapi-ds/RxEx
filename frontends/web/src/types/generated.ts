@@ -223,9 +223,10 @@ export interface Risk {
   status?: StatusEnum; // Current lifecycle state
   description?: string | null; // Optional detailed description
   tags?: string[] | null; // Optional list of tags for categorization
-  severity: SeverityEnum; // Risk severity level
+  severity: number; // Risk severity rating 1-10
   probability: ProbabilityEnum; // Risk probability
   mitigation_plan?: string | null; // Optional risk mitigation plan
+  acceptable_limit?: string | null; // Acceptable risk threshold
 }
 
 export interface Failure {
@@ -243,6 +244,8 @@ export interface Failure {
   effects: string; // Effects or consequences of the failure
   causes: string; // Root causes of the failure
   detection_method?: string | null; // Optional method for detecting the failure
+  occurrence?: number | null; // Occurrence rating 1-10
+  detectability?: number | null; // Detectability rating 1-10
 }
 
 export interface Requirement {
@@ -276,7 +279,7 @@ export interface Resource {
   description?: string | null; // Optional detailed description
   tags?: string[] | null; // Optional list of tags for categorization
   email?: string | null; // Optional email address for the resource
-  workinghours_max_per_week?: number;
+  workinghours_max_per_week?: number; // Maximal working hours per week
   workinghours_per_year?: number; // Working hours per year
   efficiency?: number;
   hourly_rate?: number; // Hourly cost rate in EUR

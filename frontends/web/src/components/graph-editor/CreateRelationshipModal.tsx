@@ -5,12 +5,13 @@
  * Features:
  * - Select source node
  * - Select target node
- * - Select relationship type
+ * - Select relationship type (including CAN_OCCUR and LEAD_TO)
+ * - Input probability fields for CAN_OCCUR (p1, p2) and LEAD_TO (occurrence_probability, detectability_probability)
  * - Validate selections
  * - Create relationship via API
  * - Add new edge to graph state
  * 
- * **Validates: Requirements 5.2, 5.4**
+ * **Validates: Requirements 5.2, 5.4, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7**
  */
 
 import { useState, useEffect } from 'react';
@@ -42,6 +43,14 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string>('');
 
+  // CAN_OCCUR property fields
+  const [p1, setP1] = useState<string>('');
+  const [p2, setP2] = useState<string>('');
+
+  // LEAD_TO property fields
+  const [occurrenceProbability, setOccurrenceProbability] = useState<string>('');
+  const [detectabilityProbability, setDetectabilityProbability] = useState<string>('');
+
   // Get list of available nodes
   const availableNodes = Array.from(state.minds.values());
 
@@ -52,6 +61,10 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
       setTargetNodeId('');
       setRelationshipType('CONTAINS');
       setValidationError('');
+      setP1('');
+      setP2('');
+      setOccurrenceProbability('');
+      setDetectabilityProbability('');
     }
   }, [isOpen]);
 
@@ -73,11 +86,25 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
     return true;
   };
 
+  /** Build properties dict for CAN_OCCUR / LEAD_TO relationship types */
+  const buildProperties = (): Record<string, unknown> => {
+    const props: Record<string, unknown> = {};
+
+    if (relationshipType === 'CAN_OCCUR') {
+      if (p1 !== '') props.p1 = parseFloat(p1);
+      if (p2 !== '') props.p2 = parseFloat(p2);
+    } else if (relationshipType === 'LEAD_TO') {
+      if (occurrenceProbability !== '') props.occurrence_probability = parseFloat(occurrenceProbability);
+      if (detectabilityProbability !== '') props.detectability_probability = parseFloat(detectabilityProbability);
+    }
+
+    return props;
+  };
+
   // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
-    // Validate selections
     if (!validateSelections()) {
       return;
     }
@@ -85,27 +112,23 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
     setIsSubmitting(true);
 
     try {
+      const properties = buildProperties();
+
       // Create relationship via API
       const newRelationship = await relationshipsAPI.create({
         type: relationshipType,
         source: sourceNodeId,
         target: targetNodeId,
-        properties: {},
+        properties,
       });
 
       // Add new relationship to graph state
       dispatch({ type: 'ADD_RELATIONSHIP', payload: newRelationship });
 
-      // Show success notification
       showToast('success', 'Relationship created successfully');
-
-      // Announce CRUD operation
       announceCRUDOperation('created', 'relationship');
-
-      // Close modal
       onClose();
     } catch (error) {
-      // Handle error
       const errorMessage = error instanceof Error ? error.message : 'Failed to create relationship';
       setValidationError(errorMessage);
       showToast('error', errorMessage);
@@ -114,8 +137,7 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
     }
   };
 
-  // Handle cancel
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     onClose();
   };
 
@@ -212,8 +234,84 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
               <option value="TO">TO</option>
               <option value="FOR">FOR</option>
               <option value="REFINES">REFINES</option>
+              <option value="CAN_OCCUR" className="rel-option-can-occur">CAN_OCCUR</option>
+              <option value="LEAD_TO" className="rel-option-lead-to">LEAD_TO</option>
             </select>
           </div>
+
+          {/* CAN_OCCUR property fields */}
+          {relationshipType === 'CAN_OCCUR' && (
+            <fieldset className="relationship-properties">
+              <legend>CAN_OCCUR Properties</legend>
+              <div className="form-group">
+                <label htmlFor="can-occur-p1">P1 (%)</label>
+                <input
+                  id="can-occur-p1"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={p1}
+                  onChange={(e) => setP1(e.target.value)}
+                  className="form-input"
+                  placeholder="0 – 100"
+                  aria-label="P1 probability percentage"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="can-occur-p2">P2 (%)</label>
+                <input
+                  id="can-occur-p2"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={p2}
+                  onChange={(e) => setP2(e.target.value)}
+                  className="form-input"
+                  placeholder="0 – 100"
+                  aria-label="P2 probability percentage"
+                />
+              </div>
+            </fieldset>
+          )}
+
+          {/* LEAD_TO property fields */}
+          {relationshipType === 'LEAD_TO' && (
+            <fieldset className="relationship-properties">
+              <legend>LEAD_TO Properties</legend>
+              <div className="form-group">
+                <label htmlFor="lead-to-occurrence">Occurrence Prob (%)</label>
+                <input
+                  id="lead-to-occurrence"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={occurrenceProbability}
+                  onChange={(e) => setOccurrenceProbability(e.target.value)}
+                  className="form-input"
+                  placeholder="0 – 100"
+                  aria-label="Occurrence probability percentage"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="lead-to-detectability">Detectability Prob (%)</label>
+                <input
+                  id="lead-to-detectability"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={detectabilityProbability}
+                  onChange={(e) => setDetectabilityProbability(e.target.value)}
+                  className="form-input"
+                  placeholder="0 – 100"
+                  aria-label="Detectability probability percentage"
+                />
+              </div>
+            </fieldset>
+          )}
 
           {/* Validation Error */}
           {validationError && (

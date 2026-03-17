@@ -254,23 +254,35 @@ export const relationshipsAPI = {
    * @returns Promise with the created relationship
    */
   create: async (data: Omit<Relationship, 'id'>): Promise<Relationship> => {
+    // Build request body; include properties for CAN_OCCUR / LEAD_TO
+    const body: Record<string, unknown> = {
+      from_uuid: data.source,
+      to_uuid: data.target,
+      relationship_type: data.type,
+    };
+
+    if (
+      (data.type === 'CAN_OCCUR' || data.type === 'LEAD_TO') &&
+      data.properties &&
+      Object.keys(data.properties).length > 0
+    ) {
+      body.properties = data.properties;
+    }
+
     const response = await api.post<{
       source_uuid: string;
       target_uuid: string;
       relationship_type: string;
       created_at: string;
-    }>('/api/v1/relationships', {
-      from_uuid: data.source,
-      to_uuid: data.target,
-      relationship_type: data.type,
-    });
+      properties?: Record<string, any>;
+    }>('/api/v1/relationships', body);
     const rel = response.data;
     return {
       id: `${rel.source_uuid}-${rel.target_uuid}-${rel.relationship_type}`,
       type: rel.relationship_type.toUpperCase() as RelationshipType,
       source: rel.source_uuid,
       target: rel.target_uuid,
-      properties: {},
+      properties: rel.properties || {},
     };
   },
 
@@ -504,6 +516,24 @@ export const reportsAPI = {
     const response = await api.get(
       `/api/v1/reports/project/${projectUuid}/pdf`,
       { params, responseType: 'blob' }
+    );
+    return response.data;
+  },
+};
+
+/**
+ * FMEA API methods
+ */
+export const fmeaAPI = {
+  /**
+   * Download FMEA XLSX report as Blob
+   * @param fmeaType - FMEA report type: "design", "process", "iso14971", or "general"
+   * @returns Promise with the XLSX file as a Blob
+   */
+  downloadReport: async (fmeaType: string): Promise<Blob> => {
+    const response = await api.get(
+      `/api/v1/fmea/report/${fmeaType}`,
+      { responseType: 'blob' }
     );
     return response.data;
   },
