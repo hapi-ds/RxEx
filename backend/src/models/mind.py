@@ -222,3 +222,41 @@ class HasScheduled(BaseRelationship):
 
     source: BaseMind  # Project
     target: BaseMind  # ScheduleHistory
+
+
+class CanOccur(BaseRelationship):
+    """
+    Relationship linking a Risk node to a Requirement node.
+
+    This relationship indicates that a risk can occur for a given requirement,
+    carrying two probability percentages (p1, p2) for conditional risk modeling
+    (e.g., P1 = probability of exposure, P2 = probability of harm given exposure).
+
+    **Validates: Requirements 3.1, 3.2, 3.3, 3.5**
+    """
+
+    __relationshiptype__: str = "CAN_OCCUR"
+
+    source: BaseMind  # Risk
+    target: BaseMind  # Requirement
+    p1: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    p2: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+
+
+class LeadTo(BaseRelationship):
+    """
+    Relationship linking a Failure node to a Risk or another Failure node.
+
+    This relationship models failure chains and failure trees, where failures
+    lead to risks or cascade into other failures. Supports infinite chaining
+    of Failure → Failure connections for arbitrarily deep failure chains.
+
+    **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.6, 4.8**
+    """
+
+    __relationshiptype__: str = "LEAD_TO"
+
+    source: BaseMind  # Failure
+    target: BaseMind  # Risk or Failure
+    occurrence_probability: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    detectability_probability: Optional[float] = Field(default=None, ge=0.0, le=100.0)

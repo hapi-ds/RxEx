@@ -7,7 +7,7 @@ from .enums import (
     AccountType,
     RequirementType,
 )
-from .mind import BaseMind, HasScheduled, Previous
+from .mind import BaseMind, CanOccur, HasScheduled, LeadTo, Previous
 
 from .mind_types import (
     AcceptanceCriteria,
@@ -38,7 +38,9 @@ __all__ = [
     "AccountType",
     "RequirementType",
     "BaseMind",
+    "CanOccur",
     "HasScheduled",
+    "LeadTo",
     "Previous",
     "AcceptanceCriteria",
     "Booking",

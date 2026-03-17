@@ -664,7 +664,11 @@ class MindService:
             return True
 
     async def create_relationship(
-        self, source_uuid: UUID, target_uuid: UUID, relationship_type: str
+        self,
+        source_uuid: UUID,
+        target_uuid: UUID,
+        relationship_type: str,
+        properties: Optional[dict[str, Any]] = None,
     ):
         """
         Create a typed relationship between two Mind nodes.
@@ -708,6 +712,8 @@ class MindService:
             "has_scheduled",
             "scheduled",
             "previous",
+            "can_occur",
+            "lead_to",
         }
         if relationship_type not in valid_types:
             raise ValueError(
@@ -759,21 +765,41 @@ class MindService:
         # Create the relationship (Requirement 8.4)
         created_at = datetime.now(timezone.utc)
 
+        # Build relationship properties based on type
+        rel_props: dict[str, Any] = {"created_at": created_at}
+        if relationship_type == "can_occur":
+            if properties:
+                if "p1" in properties:
+                    rel_props["p1"] = properties["p1"]
+                if "p2" in properties:
+                    rel_props["p2"] = properties["p2"]
+        elif relationship_type == "lead_to":
+            if properties:
+                if "occurrence_probability" in properties:
+                    rel_props["occurrence_probability"] = properties["occurrence_probability"]
+                if "detectability_probability" in properties:
+                    rel_props["detectability_probability"] = properties["detectability_probability"]
+
+        # Build Cypher property string dynamically
+        prop_parts = []
+        for key in rel_props:
+            prop_parts.append(f"{key}: ${key}")
+        prop_string = ", ".join(prop_parts)
+
         create_cypher = f"""
         MATCH (source {{uuid: $source_uuid}})
         MATCH (target {{uuid: $target_uuid}})
-        CREATE (source)-[r:{rel_type_upper} {{created_at: $created_at}}]->(target)
+        CREATE (source)-[r:{rel_type_upper} {{{prop_string}}}]->(target)
         RETURN count(r) as rel_count
         """
 
-        create_result = gc.engine.evaluate_query(
-            create_cypher,
-            {
-                "source_uuid": str(source_uuid),
-                "target_uuid": str(target_uuid),
-                "created_at": created_at,
-            },
-        )
+        query_params: dict[str, Any] = {
+            "source_uuid": str(source_uuid),
+            "target_uuid": str(target_uuid),
+        }
+        query_params.update(rel_props)
+
+        create_result = gc.engine.evaluate_query(create_cypher, query_params)
 
         # Verify the relationship was created
         if (
@@ -785,13 +811,16 @@ class MindService:
                 f"Failed to create relationship: {source_uuid} -{relationship_type}-> {target_uuid}"
             )
 
+        # Build response properties (exclude created_at)
+        response_props = {k: v for k, v in rel_props.items() if k != "created_at"}
+
         # Return relationship response
         return RelationshipResponse(
             relationship_type=relationship_type,
             source_uuid=source_uuid,
             target_uuid=target_uuid,
             created_at=created_at,
-            properties={},
+            properties=response_props,
         )
 
     async def get_relationships(
@@ -848,6 +877,8 @@ class MindService:
             "has_scheduled",
             "scheduled",
             "previous",
+            "can_occur",
+            "lead_to",
         }
         if relationship_type is not None and relationship_type not in valid_types:
             raise ValueError(
@@ -870,7 +901,8 @@ class MindService:
         _rel_types = (
             "['CONTAINS', 'DEPENDS_ON', 'ASSIGNED_TO', 'RELATES_TO', "
             "'IMPLEMENTS', 'MITIGATES', 'PREDATES', 'TO', 'FOR', "
-            "'REFINES', 'HAS_SCHEDULED', 'SCHEDULED', 'PREVIOUS']"
+            "'REFINES', 'HAS_SCHEDULED', 'SCHEDULED', 'PREVIOUS', "
+            "'CAN_OCCUR', 'LEAD_TO']"
         )
 
         # Build Cypher query based on direction and optional type filter
@@ -1009,7 +1041,7 @@ class MindService:
         WHERE type(r) IN [
             'CONTAINS', 'DEPENDS_ON', 'ASSIGNED_TO', 'RELATES_TO',
             'IMPLEMENTS', 'MITIGATES', 'PREDATES', 'TO', 'FOR',
-            'REFINES', 'PREVIOUS'
+            'REFINES', 'PREVIOUS', 'CAN_OCCUR', 'LEAD_TO'
         ]
         AND source.uuid IS NOT NULL AND target.uuid IS NOT NULL
         RETURN type(r) as rel_type, source.uuid as source_uuid,

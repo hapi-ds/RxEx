@@ -104,35 +104,160 @@ class TestTask:
 class TestRisk:
     """Test Risk mind type."""
 
-    def test_valid_risk(self):
-        """Test that a valid Risk can be created."""
+    def test_valid_risk_with_integer_severity(self):
+        """Test that a valid Risk can be created with integer severity."""
         risk = Risk(
             title="Technical Risk",
             creator="test@example.com",
-            severity=SeverityEnum.HIGH,
+            severity=7,
             probability=ProbabilityEnum.LIKELY
         )
 
         assert risk.title == "Technical Risk"
-        assert risk.severity == SeverityEnum.HIGH
+        assert risk.severity == 7
         assert risk.probability == ProbabilityEnum.LIKELY
+
+    def test_risk_backward_compat_enum_string(self):
+        """Test that old SeverityEnum string values are mapped to integers."""
+        risk = Risk(
+            title="Technical Risk",
+            creator="test@example.com",
+            severity="high",
+            probability=ProbabilityEnum.LIKELY
+        )
+
+        assert risk.severity == 7
 
     def test_risk_with_mitigation(self):
         """Test that Risk can be created with mitigation plan."""
         risk = Risk(
             title="Risk With Mitigation",
             creator="test@example.com",
-            severity=SeverityEnum.MEDIUM,
+            severity=5,
             probability=ProbabilityEnum.UNLIKELY,
             mitigation_plan="Monitor and review regularly"
         )
 
         assert risk.mitigation_plan == "Monitor and review regularly"
 
+    def test_risk_acceptable_limit_default_null(self):
+        """Test that Risk created without acceptable_limit stores it as null."""
+        risk = Risk(
+            title="Risk Without Limit",
+            creator="test@example.com",
+            severity=3,
+            probability=ProbabilityEnum.RARE
+        )
+
+        assert risk.acceptable_limit is None
+
+    def test_risk_with_acceptable_limit(self):
+        """Test that Risk can be created with acceptable_limit."""
+        risk = Risk(
+            title="Risk With Limit",
+            creator="test@example.com",
+            severity=4,
+            probability=ProbabilityEnum.POSSIBLE,
+            acceptable_limit="RPN < 100"
+        )
+
+        assert risk.acceptable_limit == "RPN < 100"
+
+    def test_risk_severity_out_of_range(self):
+        """Test that severity outside 1-10 raises ValidationError."""
+        with pytest.raises(ValidationError):
+            Risk(
+                title="Bad Risk",
+                creator="test@example.com",
+                severity=0,
+                probability=ProbabilityEnum.LIKELY
+            )
+        with pytest.raises(ValidationError):
+            Risk(
+                title="Bad Risk",
+                creator="test@example.com",
+                severity=11,
+                probability=ProbabilityEnum.LIKELY
+            )
 
 
 
 
+
+
+
+class TestFailure:
+    """Test Failure mind type."""
+
+    def test_failure_without_occurrence_detectability(self):
+        """Test that Failure can be created without occurrence/detectability (defaults to None)."""
+        failure = Failure(
+            title="Test Failure",
+            creator="test@example.com",
+            failure_mode="Motor overheats",
+            effects="System shutdown",
+            causes="Insufficient cooling",
+        )
+
+        assert failure.occurrence is None
+        assert failure.detectability is None
+
+    def test_failure_with_valid_occurrence_detectability(self):
+        """Test that Failure can be created with valid occurrence/detectability values."""
+        failure = Failure(
+            title="Test Failure",
+            creator="test@example.com",
+            failure_mode="Motor overheats",
+            effects="System shutdown",
+            causes="Insufficient cooling",
+            occurrence=5,
+            detectability=3,
+        )
+
+        assert failure.occurrence == 5
+        assert failure.detectability == 3
+
+    def test_failure_occurrence_out_of_range(self):
+        """Test that occurrence outside 1-10 raises ValidationError."""
+        with pytest.raises(ValidationError):
+            Failure(
+                title="Bad Failure",
+                creator="test@example.com",
+                failure_mode="Fail",
+                effects="Bad",
+                causes="Unknown",
+                occurrence=0,
+            )
+        with pytest.raises(ValidationError):
+            Failure(
+                title="Bad Failure",
+                creator="test@example.com",
+                failure_mode="Fail",
+                effects="Bad",
+                causes="Unknown",
+                occurrence=11,
+            )
+
+    def test_failure_detectability_out_of_range(self):
+        """Test that detectability outside 1-10 raises ValidationError."""
+        with pytest.raises(ValidationError):
+            Failure(
+                title="Bad Failure",
+                creator="test@example.com",
+                failure_mode="Fail",
+                effects="Bad",
+                causes="Unknown",
+                detectability=0,
+            )
+        with pytest.raises(ValidationError):
+            Failure(
+                title="Bad Failure",
+                creator="test@example.com",
+                failure_mode="Fail",
+                effects="Bad",
+                causes="Unknown",
+                detectability=11,
+            )
 
 
 class TestRequirement:

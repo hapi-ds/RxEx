@@ -638,6 +638,8 @@ class FailureCreate(BaseModel):
     effects: str
     causes: str
     detection_method: str | None = None
+    occurrence: int | None = None
+    detectability: int | None = None
 
     @field_serializer('status')
     def serialize_status(self, value: StatusEnum | None) -> str | None:
@@ -669,6 +671,8 @@ class FailureUpdate(BaseModel):
     effects: str | None = None
     causes: str | None = None
     detection_method: str | None = None
+    occurrence: int | None = None
+    detectability: int | None = None
 
     @field_serializer('status')
     def serialize_status(self, value: StatusEnum | None) -> str | None:
@@ -703,6 +707,8 @@ class FailureResponse(BaseModel):
     effects: str
     causes: str
     detection_method: str | None = None
+    occurrence: int | None = None
+    detectability: int | None = None
 
     @field_serializer('status')
     def serialize_status(self, value: StatusEnum | None) -> str | None:
@@ -1326,9 +1332,10 @@ class RiskCreate(BaseModel):
     status: StatusEnum | None = StatusEnum.DRAFT
     description: str | None = None
     tags: list[str] | None = None
-    severity: SeverityEnum
+    severity: int
     probability: ProbabilityEnum
     mitigation_plan: str | None = None
+    acceptable_limit: str | None = None
 
     @field_serializer('status')
     def serialize_status(self, value: StatusEnum | None) -> str | None:
@@ -1343,17 +1350,6 @@ class RiskCreate(BaseModel):
             return None
         if isinstance(value, str):
             return StatusEnum(value)
-        return value
-
-    @field_serializer('severity')
-    def serialize_severity(self, value: SeverityEnum) -> str:
-        return value.value if isinstance(value, SeverityEnum) else value
-
-    @field_validator('severity', mode='before')
-    @classmethod
-    def validate_severity(cls, value):
-        if isinstance(value, str):
-            return SeverityEnum(value)
         return value
 
     @field_serializer('probability')
@@ -1378,9 +1374,10 @@ class RiskUpdate(BaseModel):
     status: StatusEnum | None = None
     description: str | None = None
     tags: list[str] | None = None
-    severity: SeverityEnum | None = None
+    severity: int | None = None
     probability: ProbabilityEnum | None = None
     mitigation_plan: str | None = None
+    acceptable_limit: str | None = None
 
     @field_serializer('status')
     def serialize_status(self, value: StatusEnum | None) -> str | None:
@@ -1395,21 +1392,6 @@ class RiskUpdate(BaseModel):
             return None
         if isinstance(value, str):
             return StatusEnum(value)
-        return value
-
-    @field_serializer('severity')
-    def serialize_severity(self, value: SeverityEnum | None) -> str | None:
-        if value is None:
-            return None
-        return value.value if isinstance(value, SeverityEnum) else value
-
-    @field_validator('severity', mode='before')
-    @classmethod
-    def validate_severity(cls, value):
-        if value is None:
-            return None
-        if isinstance(value, str):
-            return SeverityEnum(value)
         return value
 
     @field_serializer('probability')
@@ -1441,9 +1423,10 @@ class RiskResponse(BaseModel):
     status: StatusEnum | None = None
     description: str | None = None
     tags: list[str] | None = None
-    severity: SeverityEnum
+    severity: int
     probability: ProbabilityEnum
     mitigation_plan: str | None = None
+    acceptable_limit: str | None = None
 
     @field_serializer('status')
     def serialize_status(self, value: StatusEnum | None) -> str | None:
@@ -1458,17 +1441,6 @@ class RiskResponse(BaseModel):
             return None
         if isinstance(value, str):
             return StatusEnum(value)
-        return value
-
-    @field_serializer('severity')
-    def serialize_severity(self, value: SeverityEnum) -> str:
-        return value.value if isinstance(value, SeverityEnum) else value
-
-    @field_validator('severity', mode='before')
-    @classmethod
-    def validate_severity(cls, value):
-        if isinstance(value, str):
-            return SeverityEnum(value)
         return value
 
     @field_serializer('probability')

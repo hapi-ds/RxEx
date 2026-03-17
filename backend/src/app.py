@@ -34,6 +34,7 @@ from src.routes.skills import skills_router
 from src.routes.data import data_router
 from src.routes.schedules import router as schedules_router
 from src.routes.reports import router as reports_router
+from src.routes.fmea import router as fmea_router
 from src.websocket.routes import router as websocket_router
 
 logger = logging.getLogger(__name__)
@@ -137,6 +138,7 @@ app.include_router(skills_router, tags=["Skills"], prefix="/api/v1/skills")
 app.include_router(data_router, tags=["Data"], prefix="/api/v1")
 app.include_router(schedules_router, tags=["Scheduling"])
 app.include_router(reports_router, tags=["Reports"])
+app.include_router(fmea_router, tags=["FMEA"])
 app.include_router(websocket_router, tags=["WebSocket"])
 
 # Register exception handlers for Mind system

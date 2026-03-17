@@ -25,6 +25,7 @@ class CreateRelationshipRequest(BaseModel):
     from_uuid: UUID
     to_uuid: UUID
     relationship_type: str
+    properties: dict | None = None
 
 
 @router.get("", response_model=list[RelationshipResponse])
@@ -40,6 +41,7 @@ async def create_relationship(body: CreateRelationshipRequest) -> RelationshipRe
         source_uuid=body.from_uuid,
         target_uuid=body.to_uuid,
         relationship_type=body.relationship_type.lower(),
+        properties=body.properties,
     )
     return result
 

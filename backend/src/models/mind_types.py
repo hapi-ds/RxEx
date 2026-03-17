@@ -335,22 +335,25 @@ class Risk(BaseMind):
     """
     Risk Mind type representing a project or process risk.
 
-    Extends BaseMind with risk-specific attributes including severity,
-    probability, and optional mitigation plan.
+    Extends BaseMind with risk-specific attributes including severity (1-10),
+    probability, optional mitigation plan, and acceptable risk threshold.
 
     Attributes:
-        severity: Risk severity level (low, medium, high, critical)
+        severity: Risk severity rating 1-10
         probability: Risk probability (rare, unlikely, possible, likely, certain)
         mitigation_plan: Optional risk mitigation plan
+        acceptable_limit: Optional acceptable risk threshold
 
-    **Validates: Requirements 2.1, 2.2, 2.3, 9.4**
+    **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
     """
 
     __primarylabel__: str = "Risk"
 
-    severity: SeverityEnum = Field(
+    severity: int = Field(
         ...,
-        description="Risk severity level"
+        ge=1,
+        le=10,
+        description="Risk severity rating 1-10"
     )
     probability: ProbabilityEnum = Field(
         ...,
@@ -360,25 +363,26 @@ class Risk(BaseMind):
         default=None,
         description="Optional risk mitigation plan"
     )
-
-
-    @field_serializer('severity')
-    def serialize_severity(self, severity: SeverityEnum, _info):
-        """Serialize SeverityEnum to its value."""
-        if isinstance(severity, SeverityEnum):
-            return severity.value
-        return severity
+    acceptable_limit: Optional[str] = Field(
+        default=None,
+        description="Acceptable risk threshold"
+    )
 
     @field_validator('severity', mode='before')
     @classmethod
     def validate_severity(cls, v):
-        """Validate and normalize severity from various formats."""
-        if isinstance(v, SeverityEnum):
+        """Accept both old SeverityEnum strings and new integers."""
+        if isinstance(v, int):
             return v
         if isinstance(v, str):
-            if v.startswith("SeverityEnum."):
-                v = v.replace("SeverityEnum.", "")
-            return SeverityEnum(v.lower())
+            mapping = {"low": 2, "medium": 5, "high": 7, "critical": 9}
+            v_clean = v.replace("SeverityEnum.", "").lower()
+            if v_clean in mapping:
+                return mapping[v_clean]
+            try:
+                return int(v)
+            except ValueError:
+                raise ValueError(f"Invalid severity value: {v}")
         return v
 
     @field_serializer('probability')
@@ -407,15 +411,17 @@ class Failure(BaseMind):
     Failure Mind type representing a failure mode analysis.
 
     Extends BaseMind with failure-specific attributes including failure mode,
-    effects, causes, and optional detection method.
+    effects, causes, optional detection method, and FMEA integer ratings.
 
     Attributes:
         failure_mode: Description of the failure mode
         effects: Effects or consequences of the failure
         causes: Root causes of the failure
         detection_method: Optional method for detecting the failure
+        occurrence: Optional occurrence rating 1-10
+        detectability: Optional detectability rating 1-10
 
-    **Validates: Requirements 2.1, 2.2, 2.3**
+    **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5**
     """
 
     __primarylabel__: str = "Failure"
@@ -438,6 +444,18 @@ class Failure(BaseMind):
     detection_method: Optional[str] = Field(
         default=None,
         description="Optional method for detecting the failure"
+    )
+    occurrence: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=10,
+        description="Occurrence rating 1-10"
+    )
+    detectability: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=10,
+        description="Detectability rating 1-10"
     )
 
 
