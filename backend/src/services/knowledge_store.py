@@ -485,8 +485,12 @@ class KnowledgeStore:
             relationships_text,
             node_types_text,
             "",
-            "## Risk Analyses",
         ]
+        if skills_text:
+            schema_sections.append(skills_text)
+            schema_sections.append("")
+            
+        schema_sections.append("## Risk Analyses")
         schema_text = "\n".join(schema_sections)
         schema_tokens = self._estimate_token_count(schema_text)
 
