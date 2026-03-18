@@ -41,7 +41,7 @@ class TestProject:
             creator="test@example.com",
             start_date=date(2024, 1, 1),
             end_date=date(2024, 12, 31),
-            budget=50000.0
+            budget=50000.0,
         )
 
         assert project.title == "Test Project"
@@ -55,7 +55,7 @@ class TestProject:
             title="Project Without Budget",
             creator="test@example.com",
             start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31)
+            end_date=date(2024, 12, 31),
         )
 
         assert project.budget is None
@@ -81,7 +81,7 @@ class TestTask:
             title="Task With Due Date",
             creator="test@example.com",
             priority=PriorityEnum.CRITICAL,
-            due_date=date(2024, 6, 30)
+            due_date=date(2024, 6, 30),
         )
 
         assert task.due_date == date(2024, 6, 30)
@@ -92,7 +92,7 @@ class TestTask:
             Task(
                 title="Test Task",
                 creator="test@example.com",
-                priority="invalid_priority"  # type: ignore[call-arg]
+                priority="invalid_priority",  # type: ignore[call-arg]
             )
 
         errors = exc_info.value.errors()
@@ -110,7 +110,7 @@ class TestRisk:
             title="Technical Risk",
             creator="test@example.com",
             severity=7,
-            probability=ProbabilityEnum.LIKELY
+            probability=ProbabilityEnum.LIKELY,
         )
 
         assert risk.title == "Technical Risk"
@@ -123,7 +123,7 @@ class TestRisk:
             title="Technical Risk",
             creator="test@example.com",
             severity="high",
-            probability=ProbabilityEnum.LIKELY
+            probability=ProbabilityEnum.LIKELY,
         )
 
         assert risk.severity == 7
@@ -135,7 +135,7 @@ class TestRisk:
             creator="test@example.com",
             severity=5,
             probability=ProbabilityEnum.UNLIKELY,
-            mitigation_plan="Monitor and review regularly"
+            mitigation_plan="Monitor and review regularly",
         )
 
         assert risk.mitigation_plan == "Monitor and review regularly"
@@ -146,7 +146,7 @@ class TestRisk:
             title="Risk Without Limit",
             creator="test@example.com",
             severity=3,
-            probability=ProbabilityEnum.RARE
+            probability=ProbabilityEnum.RARE,
         )
 
         assert risk.acceptable_limit is None
@@ -158,7 +158,7 @@ class TestRisk:
             creator="test@example.com",
             severity=4,
             probability=ProbabilityEnum.POSSIBLE,
-            acceptable_limit="RPN < 100"
+            acceptable_limit="RPN < 100",
         )
 
         assert risk.acceptable_limit == "RPN < 100"
@@ -170,33 +170,25 @@ class TestRisk:
                 title="Bad Risk",
                 creator="test@example.com",
                 severity=0,
-                probability=ProbabilityEnum.LIKELY
+                probability=ProbabilityEnum.LIKELY,
             )
         with pytest.raises(ValidationError):
             Risk(
                 title="Bad Risk",
                 creator="test@example.com",
                 severity=11,
-                probability=ProbabilityEnum.LIKELY
+                probability=ProbabilityEnum.LIKELY,
             )
-
-
-
-
-
 
 
 class TestFailure:
     """Test Failure mind type."""
 
-    def test_failure_without_occurrence_detectability(self):
-        """Test that Failure can be created without occurrence/detectability (defaults to None)."""
+    def test_failure_with_minimal_data(self):
+        """Test that Failure can be created with minimal data (only title, creator)."""
         failure = Failure(
             title="Test Failure",
             creator="test@example.com",
-            failure_mode="Motor overheats",
-            effects="System shutdown",
-            causes="Insufficient cooling",
         )
 
         assert failure.occurrence is None
@@ -207,9 +199,6 @@ class TestFailure:
         failure = Failure(
             title="Test Failure",
             creator="test@example.com",
-            failure_mode="Motor overheats",
-            effects="System shutdown",
-            causes="Insufficient cooling",
             occurrence=5,
             detectability=3,
         )
@@ -223,18 +212,12 @@ class TestFailure:
             Failure(
                 title="Bad Failure",
                 creator="test@example.com",
-                failure_mode="Fail",
-                effects="Bad",
-                causes="Unknown",
                 occurrence=0,
             )
         with pytest.raises(ValidationError):
             Failure(
                 title="Bad Failure",
                 creator="test@example.com",
-                failure_mode="Fail",
-                effects="Bad",
-                causes="Unknown",
                 occurrence=11,
             )
 
@@ -244,18 +227,12 @@ class TestFailure:
             Failure(
                 title="Bad Failure",
                 creator="test@example.com",
-                failure_mode="Fail",
-                effects="Bad",
-                causes="Unknown",
                 detectability=0,
             )
         with pytest.raises(ValidationError):
             Failure(
                 title="Bad Failure",
                 creator="test@example.com",
-                failure_mode="Fail",
-                effects="Bad",
-                causes="Unknown",
                 detectability=11,
             )
 
@@ -270,7 +247,7 @@ class TestRequirement:
             creator="test@example.com",
             requirement_type="WORK_INSTRUCTION_REQUIREMENT",
             content="Follow safety checklist before operation",
-            safety_critical=True
+            safety_critical=True,
         )
 
         assert instruction.requirement_type.value == "WORK_INSTRUCTION_REQUIREMENT"

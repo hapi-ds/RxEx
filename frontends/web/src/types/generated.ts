@@ -404,4 +404,4 @@ export interface Mitigation {
 
 export type Mind = Project | Task | Company | Department | Email | Knowledge | AcceptanceCriteria | Risk | Failure | Requirement | Resource | Journalentry | Booking | Sprint | Account | ScheduleHistory | ScheduledTask | Mitigation;
 
-export type NodeType = 'Project' | 'Task' | 'Company' | 'Department' | 'Email' | 'Knowledge' | 'AcceptanceCriteria' | 'Risk' | 'Failure' | 'Requirement' | 'Resource' | 'Journalentry' | 'Booking' | 'Sprint' | 'Account' | 'ScheduleHistory' | 'ScheduledTask' | 'Mitigation';
+export type NodeType = 'project' | 'task' | 'company' | 'department' | 'email' | 'knowledge' | 'acceptance_criteria' | 'risk' | 'failure' | 'requirement' | 'resource' | 'journalentry' | 'booking' | 'sprint' | 'account' | 'schedulehistory' | 'scheduledtask' | 'mitigation';

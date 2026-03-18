@@ -124,7 +124,7 @@ const baseAttributes: AttributeConfig[] = [
 // Node type configurations
 export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   Project: {
-    type: 'Project',
+    type: 'project',
     label: 'Project',
     attributes: [
       ...baseAttributes,
@@ -155,7 +155,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Task: {
-    type: 'Task',
+    type: 'task',
     label: 'Task',
     attributes: [
       ...baseAttributes,
@@ -237,7 +237,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Company: {
-    type: 'Company',
+    type: 'company',
     label: 'Company',
     attributes: [
       ...baseAttributes,
@@ -270,7 +270,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Department: {
-    type: 'Department',
+    type: 'department',
     label: 'Department',
     attributes: [
       ...baseAttributes,
@@ -295,7 +295,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Email: {
-    type: 'Email',
+    type: 'email',
     label: 'Email',
     attributes: [
       ...baseAttributes,
@@ -336,7 +336,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Knowledge: {
-    type: 'Knowledge',
+    type: 'knowledge',
     label: 'Knowledge',
     attributes: [
       ...baseAttributes,
@@ -362,7 +362,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   AcceptanceCriteria: {
-    type: 'AcceptanceCriteria',
+    type: 'acceptance_criteria',
     label: 'Acceptance Criteria',
     attributes: [
       ...baseAttributes,
@@ -397,7 +397,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Risk: {
-    type: 'Risk',
+    type: 'risk',
     label: 'Risk',
     attributes: [
       ...baseAttributes,
@@ -415,7 +415,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
 
 
   Failure: {
-    type: 'Failure',
+    type: 'failure',
     label: 'Failure',
     attributes: [
       ...baseAttributes,
@@ -441,7 +441,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Mitigation: {
-    type: 'Mitigation',
+    type: 'mitigation',
     label: 'Mitigation',
     attributes: [
       ...baseAttributes,
@@ -449,7 +449,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Requirement: {
-    type: 'Requirement',
+    type: 'requirement',
     label: 'Requirement',
     attributes: [
       ...baseAttributes,
@@ -505,7 +505,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Resource: {
-    type: 'Resource',
+    type: 'resource',
     label: 'Resource',
     attributes: [
       ...baseAttributes,
@@ -565,7 +565,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Journalentry: {
-    type: 'Journalentry',
+    type: 'journalentry',
     label: 'Journal Entry',
     attributes: [
       ...baseAttributes,
@@ -581,7 +581,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Booking: {
-    type: 'Booking',
+    type: 'booking',
     label: 'Booking',
     attributes: [
       ...baseAttributes,
@@ -623,7 +623,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Sprint: {
-    type: 'Sprint',
+    type: 'sprint',
     label: 'Sprint',
     attributes: [
       ...baseAttributes,
@@ -672,7 +672,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   Account: {
-    type: 'Account',
+    type: 'account',
     label: 'Account',
     attributes: [
       ...baseAttributes,
@@ -688,7 +688,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   ScheduleHistory: {
-    type: 'ScheduleHistory',
+    type: 'schedulehistory',
     label: 'Schedule History',
     attributes: [
       ...baseAttributes.filter(attr => attr.name !== 'status'), // ScheduleHistory has status in different position
@@ -752,7 +752,7 @@ export const NODE_TYPE_CONFIGS: Record<NodeType, NodeTypeConfig> = {
   },
 
   ScheduledTask: {
-    type: 'ScheduledTask',
+    type: 'scheduledtask',
     label: 'Scheduled Task',
     attributes: [
       ...baseAttributes,

@@ -143,7 +143,7 @@ export function CreateNodeForm({ nodeType, onSuccess, onCancel }: CreateNodeForm
     try {
       // Prepare create data with mind_type and nested type_specific_attributes
       const createData: Record<string, unknown> = {
-        mind_type: nodeType,
+        mind_type: config.type,
       };
       const typeSpecificAttributes: Record<string, unknown> = {};
 

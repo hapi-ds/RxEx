@@ -344,8 +344,18 @@ function generateMindUnion(classes: ClassDefinition[]): string {
 /**
  * Generate NodeType union
  */
+function getBackendTypeName(className: string): string {
+  // Special cases where the type name doesn't match the class name directly
+  const specialCases: Record<string, string> = {
+    AcceptanceCriteria: 'acceptance_criteria',
+  };
+  
+  return specialCases[className] || className.toLowerCase();
+}
+
 function generateNodeType(classes: ClassDefinition[]): string {
-  const labels = classes.map(c => `'${c.primaryLabel}'`).join(' | ');
+  // Use lowercase type names that match backend MIND_TYPE_MAP
+  const labels = classes.map(c => `'${getBackendTypeName(c.name)}'`).join(' | ');
   return `export type NodeType = ${labels};`;
 }
 
