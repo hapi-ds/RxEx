@@ -94,8 +94,8 @@ See [`docs/`](docs/) for detailed docs:
 - Project Managment: 
     - New Frontend: Booking app for phone
     - Graph Page: easy create relations (better sprint planning-select relation and then just drop target not on source node)
-    - PDF Report: Add all scheduled gantt (Versions)
-    - PDF Report: Add a milestone control matrix over all scheduled project plannes
+    - PDF Project Report: Add all scheduled gantt (Versions)
+    - PDF Project Report: Add a milestone control matrix over all scheduled project plannes
     - UI & PDF: better accounting
     - New Frontend: Mail-Client to insert to graph db
     - TODO's: TaskMind-Todo (tickets)
