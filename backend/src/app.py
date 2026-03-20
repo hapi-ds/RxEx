@@ -53,6 +53,15 @@ async def lifespan(app: FastAPI):
         settings.log_dir,
         settings.log_level,
     )
+    logger.info(
+        "AI Chat Service configuration loaded",
+        extra={
+            "provider": settings.ai_provider,
+            "model": settings.ai_model_name,
+            "endpoint": settings.ai_api_endpoint,
+            "request_timeout": settings.ai_request_timeout,
+        },
+    )
     initiate_database()
     yield
     logger.info("App shutdown complete.")

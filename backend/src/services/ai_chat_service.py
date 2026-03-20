@@ -265,18 +265,35 @@ class AIChatService:
         )
 
         try:
-            # Invalidate node cache so the AI always sees freshly created nodes
+            logger.debug(f"Invalidating mind_nodes cache")
             self.knowledge_store.invalidate_cache("mind_nodes")
+            logger.debug(f"Invalidated mind_nodes cache")
 
+            logger.debug(f"Generating context prompt from knowledge store")
             # Get context prompt from knowledge store
             context_prompt = await self.knowledge_store.generate_context_prompt()
+            logger.debug(f"Context prompt generated (length: {len(context_prompt)})")
 
+            logger.debug(f"Building messages array with {len(user_message)} char message")
             # Build messages array
             messages = self._build_messages(user_message, context_prompt, conversation_history)
+            logger.debug(f"Built {len(messages)} total messages")
 
+            logger.debug(f"Building tools array")
             # Build tools array
             tools = await self._build_tools()
+            logger.debug(f"Built {len(tools)} tools")
 
+            logger.info(
+                f"Starting AI request to provider: {self.settings.ai_provider}",
+                extra={
+                    "endpoint": self.settings.ai_api_endpoint,
+                    "model": self.settings.ai_model_name,
+                    "message_count": len(messages),
+                    "tool_count": len(tools)
+                }
+            )
+            
             # Route to appropriate provider
             if self.settings.ai_provider in ("openai", "lm-studio", "custom"):
                 async for event in self._call_openai(messages, tools):
@@ -331,7 +348,14 @@ class AIChatService:
         **Validates: Requirements 3.1, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8**
         """
         endpoint = self.settings.ai_api_endpoint
+        
+        logger.info(
+            f"OpenAI API endpoint: {endpoint}",
+            extra={"model": self.settings.ai_model_name}
+        )
+        
         if not endpoint:
+            logger.error("AI API endpoint is None or empty, cannot make requests")
             yield {
                 "type": "error",
                 "error_message": "AI API endpoint not configured",
@@ -352,6 +376,11 @@ class AIChatService:
         if self.settings.ai_api_key:
             headers["Authorization"] = f"Bearer {self.settings.ai_api_key}"
 
+        logger.info(
+            f"Making OpenAI API request to {endpoint}",
+            extra={"model": self.settings.ai_model_name, "timeout": self.settings.ai_request_timeout}
+        )
+        
         try:
             async with httpx.AsyncClient(timeout=self.settings.ai_request_timeout) as client:
                 async with client.stream(
@@ -375,6 +404,8 @@ class AIChatService:
                         yield {"type": "done"}
                         return
 
+                    logger.debug("Parsing OpenAI SSE stream")
+                    
                     # Parse SSE stream
                     # Accumulate tool call data across chunks
                     # (name arrives in first chunk, arguments stream incrementally)
@@ -438,6 +469,8 @@ class AIChatService:
                                     extra={"name": tc["name"], "arguments": tc["arguments"]},
                                 )
 
+            logger.info("OpenAI-compatible API request completed successfully")
+            
             yield {"type": "done"}
 
         except httpx.TimeoutException:
@@ -489,13 +522,25 @@ class AIChatService:
         **Validates: Requirements 3.1, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8**
         """
         endpoint = self.settings.ai_api_endpoint
+        
+        logger.info(
+            f"Anthropic API endpoint: {endpoint}",
+            extra={"model": self.settings.ai_model_name}
+        )
+        
         if not endpoint:
+            logger.error("AI API endpoint is None or empty for Anthropic, cannot make requests")
             yield {
                 "type": "error",
                 "error_message": "AI API endpoint not configured",
             }
             yield {"type": "done"}
             return
+
+        logger.info(
+            f"Making Anthropic API request to {endpoint}",
+            extra={"model": self.settings.ai_model_name, "timeout": self.settings.ai_request_timeout}
+        )
 
         # Anthropic requires system message to be separate
         system_message = ""
@@ -548,6 +593,8 @@ class AIChatService:
                         yield {"type": "done"}
                         return
 
+                    logger.debug("Parsing Anthropic SSE stream")
+                    
                     # Parse SSE stream
                     # Accumulate tool use data across chunks
                     # (name arrives in content_block_start, input streams via input_json_delta)
@@ -631,6 +678,8 @@ class AIChatService:
                                     extra={"name": tc["name"], "arguments": tc["arguments"]},
                                 )
 
+            logger.info("Anthropic API request completed successfully")
+            
             yield {"type": "done"}
 
         except httpx.TimeoutException:

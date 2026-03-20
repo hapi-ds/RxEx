@@ -14,6 +14,40 @@ if TYPE_CHECKING:
     from src.config.config import Settings
 
 
+class ContextFormatter(logging.Formatter):
+    """Custom formatter that includes extra context fields in log output."""
+    
+    def format(self, record):
+        # Get the original message
+        msg = record.getMessage()
+        
+        # Build context string from extra fields (use copy to avoid mutation issues)
+        import copy
+        record_copy = copy.copy(record)
+        
+        context_parts = []
+        
+        # Common AI service context fields
+        for field in ['endpoint', 'model', 'provider', 'timeout', 'status_code', 'error']:
+            if hasattr(record, field):
+                value = getattr(record, field)
+                if isinstance(value, str) and len(value) > 50:
+                    value = value[:47] + "..."
+                context_parts.append(f"{field}={value}")
+        
+        # Add user_email for chat requests
+        for field in ['user_email', 'message_length', 'history_length', 'tool_count']:
+            if hasattr(record, field):
+                context_parts.append(f"{field}={getattr(record, field)}")
+        
+        # Build the final message without mutating record.msg
+        if context_parts:
+            return f"{super().format(record_copy)} | {' '.join(context_parts)}"
+        
+        return super().format(record)
+
+
+
 def setup_logging(config: "Settings | None" = None) -> None:
     """Configure root logger with rotating file and stdout handlers.
 
@@ -25,10 +59,10 @@ def setup_logging(config: "Settings | None" = None) -> None:
         from src.config.config import settings
         config = settings
 
-    log_format = (
+    # Use ContextFormatter to automatically include extra context fields
+    formatter = ContextFormatter(
         "%(levelname)s: %(asctime)s: %(filename)s: %(funcName)s: %(module)s: %(message)s"
     )
-    formatter = logging.Formatter(log_format)
 
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, config.log_level))

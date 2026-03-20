@@ -68,7 +68,12 @@ async def stream_chat_response(
     except Exception as e:
         logger.error(
             "Error in stream_chat_response",
-            extra={"error": str(e), "user_email": user_email},
+            extra={
+                "error": str(e),
+                "user_email": user_email,
+                "provider": settings.ai_provider,
+                "model": settings.ai_model_name,
+            },
             exc_info=True,
         )
         # Yield error event
@@ -176,6 +181,7 @@ async def get_chat_config(
         extra={
             "user_email": current_user.email,
             "provider": settings.ai_provider,
+            "model": settings.ai_model_name,
             "is_configured": is_configured,
         },
     )

@@ -99,7 +99,7 @@ class KnowledgeStore:
         if cached is not None:
             return cached
 
-        # Query Neo4j for relationship types
+        logger.debug("Querying Neo4j for relationship types (cache miss)")
         gc = GraphConnection()
 
         cypher = "CALL db.relationshipTypes() YIELD relationshipType RETURN relationshipType"
@@ -142,7 +142,7 @@ class KnowledgeStore:
         if cached is not None:
             return cached
 
-        # Query Neo4j for node labels
+        logger.debug("Querying Neo4j for mind node types (cache miss)")
         gc = GraphConnection()
 
         cypher = "CALL db.labels() YIELD label RETURN label"

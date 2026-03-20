@@ -44,7 +44,13 @@ class ConnectionManager:
         """
         await websocket.accept()
         self.active_connections[email] = websocket
-        logger.info(f"User connected: {email} (Total connections: {len(self.active_connections)})")
+        logger.info(
+                "WebSocket user connected",
+                extra={
+                    "user_email": email,
+                    "total_connections": len(self.active_connections),
+                },
+            )
 
     def disconnect(self, email: str) -> None:
         """Remove a connection from the registry.
@@ -56,7 +62,13 @@ class ConnectionManager:
         """
         if email in self.active_connections:
             self.active_connections.pop(email)
-            logger.info(f"User disconnected: {email} (Total connections: {len(self.active_connections)})")
+            logger.info(
+                "WebSocket user disconnected",
+                extra={
+                    "user_email": email,
+                    "total_connections": len(self.active_connections),
+                },
+            )
         else:
             logger.warning(f"Attempted to disconnect non-existent connection: {email}")
 
@@ -85,7 +97,13 @@ class ConnectionManager:
                     await connection.send_json(message)
                     logger.debug(f"Message sent to {email}")
                 except Exception as e:
-                    logger.error(f"Failed to send message to {email}: {e}")
+                    logger.error(
+                    "WebSocket broadcast failed",
+                    extra={
+                        "target_email": email,
+                        "error": str(e),
+                    },
+                )
                     dead_connections.append(email)
 
         # Clean up dead connections
