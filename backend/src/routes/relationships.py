@@ -46,14 +46,21 @@ async def create_relationship(body: CreateRelationshipRequest) -> RelationshipRe
     return result
 
 
+class UpdateRelationshipRequest(BaseModel):
+    """Request body for updating a relationship's properties."""
+    properties: dict
+
+
 @router.put("/{relationship_id}", response_model=RelationshipResponse)
 async def update_relationship(
     relationship_id: str,
-    properties: dict
+    body: UpdateRelationshipRequest,
 ) -> RelationshipResponse:
     """Update a relationship's properties."""
-    # This would need to be implemented in the service
-    raise NotImplementedError("Relationship update not yet implemented")
+    return await mind_service.update_relationship_properties(
+        relationship_id=relationship_id,
+        properties=body.properties,
+    )
 
 
 @router.delete("/{relationship_id}", status_code=status.HTTP_204_NO_CONTENT)

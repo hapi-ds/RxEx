@@ -839,6 +839,112 @@ class MindService:
             properties=response_props,
         )
 
+    async def update_relationship_properties(
+        self,
+        relationship_id: str,
+        properties: dict[str, Any],
+    ):
+        """
+        Update properties on an existing relationship.
+
+        The relationship_id is a composite key: ``{source_uuid}-{target_uuid}-{rel_type}``.
+
+        Args:
+            relationship_id: Composite ID of the relationship.
+            properties: New property values to set on the relationship.
+
+        Returns:
+            RelationshipResponse with updated properties.
+
+        Raises:
+            ValueError: If the relationship_id format is invalid or the relationship is not found.
+        """
+        from ..schemas.mind_generic import RelationshipResponse
+        from neontology import GraphConnection
+
+        # Parse composite ID: {source_uuid}-{target_uuid}-{rel_type}
+        # UUIDs are 36 chars each (8-4-4-4-12), so split carefully
+        parts = relationship_id.split("-")
+        # A UUID has 5 dash-separated groups, so two UUIDs = 10 groups, plus the type
+        if len(parts) < 11:
+            raise ValueError(f"Invalid relationship_id format: {relationship_id}")
+
+        source_uuid_str = "-".join(parts[0:5])
+        target_uuid_str = "-".join(parts[5:10])
+        rel_type = "_".join(parts[10:])  # e.g. "lead_to" or "can_occur"
+
+        source_uuid = UUID(source_uuid_str)
+        target_uuid = UUID(target_uuid_str)
+        rel_type_upper = rel_type.upper()
+
+        gc = GraphConnection()
+
+        # Build SET clause for each property
+        set_parts = []
+        params: dict[str, Any] = {
+            "source_uuid": str(source_uuid),
+            "target_uuid": str(target_uuid),
+        }
+        for key, value in properties.items():
+            param_name = f"prop_{key}"
+            set_parts.append(f"r.{key} = ${param_name}")
+            params[param_name] = value
+
+        if not set_parts:
+            # Nothing to update — just return current state
+            pass
+
+        set_clause = ", ".join(set_parts) if set_parts else "r.updated = true"
+
+        cypher = f"""
+        MATCH (source {{uuid: $source_uuid}})-[r:{rel_type_upper}]->(target {{uuid: $target_uuid}})
+        SET {set_clause}
+        RETURN type(r) as rel_type, source.uuid as source_uuid,
+               target.uuid as target_uuid, r.created_at as created_at,
+               properties(r) as props
+        """
+
+        result = gc.engine.evaluate_query(cypher, params)
+
+        if not result or not result.records_raw or len(result.records_raw) == 0:
+            raise ValueError(
+                f"Relationship not found: {source_uuid} -{rel_type_upper}-> {target_uuid}"
+            )
+
+        record = result.records_raw[0]
+
+        # Convert created_at
+        created_at = record.get("created_at")
+        if hasattr(created_at, "to_native"):
+            created_at = created_at.to_native()
+        elif isinstance(created_at, str):
+            from datetime import datetime as dt
+            try:
+                created_at = dt.fromisoformat(created_at)
+            except (ValueError, TypeError):
+                created_at = None
+
+        # Extract properties (excluding created_at)
+        props = record.get("props", {})
+        clean_props: dict[str, Any] = {}
+        for k, v in props.items():
+            if k in ("created_at", "updated"):
+                continue
+            if hasattr(v, "to_native"):
+                clean_props[k] = str(v.to_native())
+            elif isinstance(v, (str, int, float, bool)) or v is None:
+                clean_props[k] = v
+            else:
+                clean_props[k] = str(v)
+
+        return RelationshipResponse(
+            relationship_type=rel_type,
+            source_uuid=source_uuid,
+            target_uuid=target_uuid,
+            created_at=created_at,
+            properties=clean_props,
+        )
+
     async def get_relationships(
         self,
         uuid: UUID,

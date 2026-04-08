@@ -293,8 +293,15 @@ export const relationshipsAPI = {
    * @returns Promise with the updated relationship
    */
   update: async (id: string, data: Partial<Omit<Relationship, 'id'>>): Promise<Relationship> => {
-    const response = await api.put<Relationship>(`/api/v1/relationships/${id}`, data);
-    return response.data;
+    const response = await api.put(`/api/v1/relationships/${id}`, data);
+    const rel = response.data;
+    return {
+      id: `${rel.source_uuid}-${rel.target_uuid}-${rel.relationship_type}`,
+      type: rel.relationship_type.toUpperCase() as RelationshipType,
+      source: rel.source_uuid,
+      target: rel.target_uuid,
+      properties: rel.properties || {},
+    };
   },
 
   /**
