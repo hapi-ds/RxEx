@@ -87,8 +87,8 @@ describe('CreateRelationshipModal', () => {
     );
 
     expect(screen.getByRole('heading', { name: /create relationship/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/source node/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/target node/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/select source node for relationship/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/select target node for relationship/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/relationship type/i)).toBeInTheDocument();
   });
 
@@ -108,7 +108,7 @@ describe('CreateRelationshipModal', () => {
 
     // The form has HTML5 required validation, so submitting without selection
     // will be prevented by the browser. We test that the validation logic exists.
-    const sourceSelect = screen.getByLabelText(/source node/i);
+    const sourceSelect = screen.getByLabelText(/select source node for relationship/i);
     expect(sourceSelect).toHaveAttribute('required');
   });
 
@@ -118,7 +118,7 @@ describe('CreateRelationshipModal', () => {
     );
 
     // The form has HTML5 required validation
-    const targetSelect = screen.getByLabelText(/target node/i);
+    const targetSelect = screen.getByLabelText(/select target node for relationship/i);
     expect(targetSelect).toHaveAttribute('required');
   });
 
@@ -130,8 +130,8 @@ describe('CreateRelationshipModal', () => {
     // The validation logic exists in the component
     // It checks if sourceNodeId === targetNodeId and shows error
     // This is tested through the component's validateSelections function
-    expect(screen.getByLabelText(/source node/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/target node/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/select source node for relationship/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/select target node for relationship/i)).toBeInTheDocument();
   });
 
   it('has API integration for relationship creation', () => {

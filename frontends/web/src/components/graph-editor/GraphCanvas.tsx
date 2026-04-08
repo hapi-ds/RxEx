@@ -33,6 +33,7 @@ import ReactFlow, {
   type Connection,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import './GraphCanvas.css';
 import { useGraphEditor, type UUID } from './GraphEditorContext';
 import { useScreenReaderAnnouncer } from './ScreenReaderAnnouncer';
 import type { Mind, Relationship } from './GraphEditorContext';
@@ -45,7 +46,13 @@ import { FocusModeBadge } from './FocusModeBadge';
 import { getLayoutFunction } from './layouts';
 import type { NodePosition } from './layouts';
 import { Tooltip } from './Tooltip';
+import { FastAddPrompt } from './FastAddPrompt';
+import { FastAddIndicator } from './FastAddIndicator';
+import { useToast } from './ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { mindsAPI, relationshipsAPI } from '../../services/api';
 import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
+import { getNodeTypeConfig } from './nodeTypeConfig';
 
 /**
  * Convert Mind to ReactFlow Node
@@ -106,6 +113,8 @@ function relationshipToEdge(
 export function GraphCanvas() {
   const { state, dispatch } = useGraphEditor();
   const { announceFilterChange } = useScreenReaderAnnouncer();
+  const { showError } = useToast();
+  const { token } = useAuth();
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const [focusedNodeIndex, setFocusedNodeIndex] = useState<number>(-1);
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
@@ -122,6 +131,12 @@ export function GraphCanvas() {
     x: 0,
     y: 0,
   });
+
+  // Fast-add right-click state: tracks the right-clicked node and mouse position
+  const [fastAddTarget, setFastAddTarget] = useState<{
+    nodeId: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
   // Handle node hover
   const handleNodeMouseEnter = useCallback((event: React.MouseEvent, nodeId: string) => {
@@ -276,6 +291,19 @@ export function GraphCanvas() {
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       const nodeId = node.id as UUID;
+
+      // Pick mode: intercept click to populate the relationship modal field (Req 8.5, 8.6)
+      if (state.pickMode && state.pickMode.active) {
+        // Dispatch custom event so CreateRelationshipModal can receive the picked node
+        window.dispatchEvent(
+          new CustomEvent('pick-mode-complete', {
+            detail: { nodeId, field: state.pickMode.field },
+          }),
+        );
+        // Exit pick mode
+        dispatch({ type: 'SET_PICK_MODE', payload: null });
+        return; // Don't select the node
+      }
       
       // Check if Shift key is pressed for focus mode
       if (event.shiftKey) {
@@ -296,7 +324,7 @@ export function GraphCanvas() {
         dispatch({ type: 'SELECT_NODE', payload: nodeId });
       }
     },
-    [dispatch, state.filters.focusedNodeId, state.minds, announceFilterChange]
+    [dispatch, state.filters.focusedNodeId, state.minds, state.pickMode, announceFilterChange]
   );
 
   // Handle edge selection
@@ -311,6 +339,110 @@ export function GraphCanvas() {
   const onPaneClick = useCallback(() => {
     dispatch({ type: 'SELECT_NODE', payload: null });
   }, [dispatch]);
+
+  // Handle right-click on a node for fast-add (Req 1.3, 1.4, 4.7, 7.1)
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (!state.fastAdd.enabled) {
+        // Fast-add disabled: allow default browser context menu
+        return;
+      }
+
+      // Only allow fast-add on nodes currently visible in the filtered graph (Req 7.1)
+      if (!state.visibleNodes.includes(node.id as UUID)) {
+        return;
+      }
+
+      // Prevent default context menu when fast-add is active
+      event.preventDefault();
+
+      // Capture the right-clicked node ID and mouse position
+      setFastAddTarget({
+        nodeId: node.id,
+        position: { x: event.clientX, y: event.clientY },
+      });
+    },
+    [state.fastAdd.enabled, state.visibleNodes]
+  );
+
+  // Handle FastAddPrompt cancel
+  const handleFastAddCancel = useCallback(() => {
+    setFastAddTarget(null);
+  }, []);
+
+  // Handle FastAddPrompt submit — creates mind + relationship via API (Req 4.1–4.6)
+  const handleFastAddSubmit = useCallback(
+    async (data: { title: string }) => {
+      const { selectedMindType, selectedRelationshipType, relationDirection } = state.fastAdd;
+
+      // Validate pre-selections are set (Req 2.2)
+      if (!selectedMindType || !selectedRelationshipType || !fastAddTarget) {
+        setFastAddTarget(null);
+        return;
+      }
+
+      // Extract creator from JWT token (logged-in user)
+      let creator = 'unknown';
+      try {
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          creator = payload.sub || payload.email || 'unknown';
+        }
+      } catch {
+        // fallback to 'unknown' if token decode fails
+      }
+
+      const clickedNodeId = fastAddTarget.nodeId;
+      setFastAddTarget(null);
+
+      // Build the mind creation payload matching CreateNodeForm pattern
+      const config = getNodeTypeConfig(selectedMindType);
+      const createData: Record<string, unknown> = {
+        mind_type: config.type,
+        title: data.title,
+        creator,
+        status: 'draft',
+      };
+
+      // Step 1: Create the mind (Req 4.1)
+      let createdMind: Mind;
+      try {
+        createdMind = await mindsAPI.create(
+          createData as Omit<Mind, 'uuid' | 'version' | 'created_at' | 'updated_at'>,
+        );
+      } catch (error) {
+        // Mind creation failed — show error, leave graph unchanged (Req 4.5)
+        const msg = error instanceof Error ? error.message : 'Failed to create mind';
+        showError(msg);
+        return;
+      }
+
+      const newMindUuid = createdMind.uuid!;
+
+      // Step 2: Create the relationship (Req 4.2)
+      try {
+        const relPayload = {
+          type: selectedRelationshipType,
+          source: relationDirection === 'source' ? clickedNodeId : newMindUuid,
+          target: relationDirection === 'source' ? newMindUuid : clickedNodeId,
+          properties: {},
+        };
+        const createdRel = await relationshipsAPI.create(relPayload);
+
+        // Both succeeded — update graph state (Req 4.3, 4.4)
+        dispatch({ type: 'ADD_MIND', payload: createdMind });
+        dispatch({ type: 'ADD_RELATIONSHIP', payload: createdRel });
+        dispatch({ type: 'SELECT_NODE', payload: newMindUuid });
+      } catch (error) {
+        // Relationship failed but mind succeeded — add orphaned mind (Req 4.6)
+        const msg = error instanceof Error ? error.message : 'Failed to create relationship';
+        showError(msg);
+        dispatch({ type: 'ADD_MIND', payload: createdMind });
+        dispatch({ type: 'SELECT_NODE', payload: newMindUuid });
+      }
+    },
+    [state.fastAdd, fastAddTarget, dispatch, showError, token],
+  );
 
   // Handle node changes (for drag, position updates, etc.)
   const onNodesChange = useCallback(
@@ -488,6 +620,18 @@ export function GraphCanvas() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [focusedNodeIndex, state.visibleNodes, nodes, buildAdjacencyMap, dispatch]);
 
+  // Cancel pick mode on Escape key (Req 8.7)
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && state.pickMode) {
+        dispatch({ type: 'SET_PICK_MODE', payload: null });
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => document.removeEventListener('keydown', handleEscapeKey);
+  }, [state.pickMode, dispatch]);
+
   // Update node data to include keyboard focus state
   // Memoized to prevent unnecessary re-renders
   const nodesWithKeyboardFocus = useMemo(() => {
@@ -500,9 +644,13 @@ export function GraphCanvas() {
     }));
   }, [nodes, focusedNodeIndex]);
 
+  const isPickModeActive = state.pickMode !== null && state.pickMode.active;
+
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <div style={{ 
+    <div
+      className={`graph-canvas-wrapper${isPickModeActive ? ' graph-canvas-wrapper--pick-mode' : ''}`}
+      style={{ width: '100%', height: '100%', position: 'relative' }}
+    >      <div style={{ 
         position: 'absolute', 
         top: '1rem', 
         left: '1rem', 
@@ -556,6 +704,7 @@ export function GraphCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeContextMenu={onNodeContextMenu}
         fitView={nodePositions.size > 0}
         attributionPosition="bottom-right"
         aria-label="Interactive graph canvas"
@@ -564,12 +713,20 @@ export function GraphCanvas() {
         <Controls />
         <MiniMap />
       </ReactFlow>
+      {state.fastAdd.enabled && <FastAddIndicator />}
       <Tooltip
         visible={tooltip.visible}
         content={tooltip.content}
         x={tooltip.x}
         y={tooltip.y}
       />
+      {fastAddTarget && (
+        <FastAddPrompt
+          position={fastAddTarget.position}
+          onSubmit={handleFastAddSubmit}
+          onCancel={handleFastAddCancel}
+        />
+      )}
     </div>
   );
 }

@@ -607,7 +607,7 @@ describe('Property-Based Tests - Filter Reset', () => {
               { minLength: 0, maxLength: 16 }
             ),
             textSearch: fc.string({ maxLength: 100 }),
-            level: fc.integer({ min: 0, max: 5 }),
+            level: fc.integer({ min: 0, max: 10 }),
             hasFocusMode: fc.boolean(),
           }),
           (filterConfig) => {
@@ -678,7 +678,7 @@ describe('Property-Based Tests - Filter Reset', () => {
               { minLength: 1, maxLength: 3 }
             ),
             textSearch: fc.string({ minLength: 1, maxLength: 50 }),
-            level: fc.integer({ min: 1, max: 5 }),
+            level: fc.integer({ min: 1, max: 10 }),
           }),
           (filterConfig) => {
             const { result } = renderHook(() => useGraphEditor(), { wrapper });
@@ -931,7 +931,7 @@ describe('Property-Based Tests - Filter Reset', () => {
           fc.record({
             nodeTypes: fc.array(fc.constantFrom('Project', 'Task'), { minLength: 1, maxLength: 2 }),
             textSearch: fc.string({ minLength: 1, maxLength: 20 }),
-            level: fc.integer({ min: 1, max: 5 }),
+            level: fc.integer({ min: 1, max: 10 }),
           }),
           (filterConfig) => {
             try {

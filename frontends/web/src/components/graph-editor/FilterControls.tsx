@@ -7,6 +7,7 @@
  * - Display count for each node type
  * - Text search input with debouncing (300ms)
  * - Proximity level slider (0-5 hops)
+ * - Collapsible panel with chevron toggle
  * - Wire to state management
  * 
  * Performance Optimizations:
@@ -14,11 +15,11 @@
  * - Event handlers use useCallback for stable references
  * - Text search debounced to 300ms to prevent excessive updates
  * 
- * **Validates: Requirements 2.1, 2.2, 2.3, 2.6, 2.7, 2.9, 2.10, 9.11**
+ * **Validates: Requirements 2.1, 2.2, 2.3, 2.6, 2.7, 2.9, 2.10, 5.1, 5.2, 5.3, 5.4, 5.5, 9.11**
  */
 
 import { useMemo, useState, useEffect, useRef, memo, useCallback } from 'react';
-import { useGraphEditor, type NodeType } from './GraphEditorContext';
+import { useGraphEditor, type NodeType, type RelationshipType } from './GraphEditorContext';
 import { NODE_TYPE_CONFIGS } from './nodeTypeConfig';
 import { useScreenReaderAnnouncer } from './ScreenReaderAnnouncer';
 import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
@@ -30,10 +31,11 @@ const HIDDEN_NODE_TYPES: NodeType[] = ['ScheduleHistory', 'ScheduledTask'];
 /**
  * FilterControls Component
  * Multi-select dropdown for filtering nodes by type and text search
+ * Supports collapse/expand via chevron toggle (Req 5.1-5.5)
  */
 export const FilterControls = memo(function FilterControls() {
   const { state, dispatch } = useGraphEditor();
-  const { filters, minds } = state;
+  const { filters, minds, filterPanelCollapsed, fastAdd } = state;
   const { announceFilterChange } = useScreenReaderAnnouncer();
 
   // Local state for text search input (before debouncing)
@@ -44,6 +46,11 @@ export const FilterControls = memo(function FilterControls() {
   useEffect(() => {
     setSearchInputValue(filters.textSearch);
   }, [filters.textSearch]);
+
+  // Toggle collapse/expand
+  const handleToggleCollapse = useCallback(() => {
+    dispatch({ type: 'SET_FILTER_PANEL_COLLAPSED', payload: !filterPanelCollapsed });
+  }, [dispatch, filterPanelCollapsed]);
 
   // Calculate count for each node type
   const nodeTypeCounts = useMemo(() => {
@@ -180,13 +187,70 @@ export const FilterControls = memo(function FilterControls() {
   const selectedCount = filters.nodeTypes.size;
   const totalCount = allNodeTypes.length;
 
+  // All available relationship types for the Fast Add selector
+  const allRelationshipTypes: RelationshipType[] = [
+    'PREVIOUS', 'SCHEDULED', 'CONTAINS', 'PREDATES', 'ASSIGNED_TO',
+    'DEPENDS_ON', 'RELATES_TO', 'IMPLEMENTS', 'MITIGATES', 'TO',
+    'FOR', 'REFINES', 'HAS_SCHEDULED', 'CAN_OCCUR', 'LEAD_TO',
+  ];
+
+  // Fast Add Mode handlers
+  const handleFastAddToggle = useCallback(() => {
+    dispatch({ type: 'SET_FAST_ADD_ENABLED', payload: !fastAdd.enabled });
+  }, [dispatch, fastAdd.enabled]);
+
+  const handleMindTypeChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    dispatch({ type: 'SET_FAST_ADD_MIND_TYPE', payload: value ? (value as NodeType) : null });
+  }, [dispatch]);
+
+  const handleRelationshipTypeChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    dispatch({ type: 'SET_FAST_ADD_RELATIONSHIP_TYPE', payload: value ? (value as RelationshipType) : null });
+  }, [dispatch]);
+
+  const handleDirectionChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    dispatch({ type: 'SET_FAST_ADD_DIRECTION', payload: event.target.value as 'source' | 'target' });
+  }, [dispatch]);
+
+  // Relationship type filter handlers (Req 6.1, 6.5, 6.6)
+  const handleRelationshipTypeFilterToggle = useCallback((relType: RelationshipType) => {
+    const newSelected = new Set(filters.relationshipTypes);
+    if (newSelected.has(relType)) {
+      newSelected.delete(relType);
+    } else {
+      newSelected.add(relType);
+    }
+    dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: newSelected });
+    const action = newSelected.has(relType) ? 'added' : 'removed';
+    announceFilterChange('Relationship type filter', `${relType} ${action}`);
+  }, [filters.relationshipTypes, dispatch, announceFilterChange]);
+
+  const handleRelationshipFilterSelectAll = useCallback(() => {
+    dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: new Set(allRelationshipTypes) });
+    announceFilterChange('Relationship type filter', 'all types selected');
+  }, [dispatch, allRelationshipTypes, announceFilterChange]);
+
+  const handleRelationshipFilterClearAll = useCallback(() => {
+    dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: new Set() });
+    announceFilterChange('Relationship type filter', 'all types cleared');
+  }, [dispatch, announceFilterChange]);
+
+  // Direction filter handler (Req 6.2)
+  const handleDirectionFilterChange = useCallback((value: 'outgoing' | 'incoming' | 'both' | null) => {
+    dispatch({ type: 'SET_DIRECTION_FILTER', payload: value });
+    announceFilterChange('Direction filter', value ?? 'cleared');
+  }, [dispatch, announceFilterChange]);
+
   // Check if any filters are active (different from defaults)
   // Use local searchInputValue instead of filters.textSearch to detect typing immediately
   const hasActiveFilters = 
     filters.nodeTypes.size > 0 ||
     searchInputValue !== '' ||
     filters.level !== 0 ||
-    filters.focusedNodeId !== null;
+    filters.focusedNodeId !== null ||
+    filters.relationshipTypes.size > 0 ||
+    (filters.directionFilter !== null && filters.directionFilter !== 'both');
 
   // Handle reset filters
   const handleResetFilters = useCallback(() => {
@@ -202,144 +266,339 @@ export const FilterControls = memo(function FilterControls() {
   }, [dispatch, announceFilterChange]);
 
   return (
-    <div className="filter-controls">
-      {/* Reset Filters Button */}
-      <div className="filter-section">
-        <button
-          type="button"
-          className="reset-filters-button"
-          onClick={handleResetFilters}
-          disabled={!hasActiveFilters}
-          aria-label="Reset all filters"
-          title="Clear all filters and return to default view"
-        >
-          Reset Filters
-        </button>
-      </div>
+    <div className={`filter-controls-wrapper ${filterPanelCollapsed ? 'collapsed' : 'expanded'}`}>
+      {/* Collapse/Expand Toggle Button (Req 5.1) */}
+      <button
+        type="button"
+        className="filter-panel-toggle"
+        onClick={handleToggleCollapse}
+        aria-label={filterPanelCollapsed ? 'Expand filter panel' : 'Collapse filter panel'}
+        aria-expanded={!filterPanelCollapsed}
+        title={filterPanelCollapsed ? 'Expand filters' : 'Collapse filters'}
+      >
+        <span className="filter-panel-toggle-icon">
+          {filterPanelCollapsed ? '▶' : '◀'}
+        </span>
+      </button>
 
-      {/* Text Search Section */}
-      <div className="filter-section">
-        <h3 className="filter-section-title">Search by Title</h3>
-        <div className="text-search-container">
-          <input
-            type="text"
-            className="text-search-input"
-            placeholder="Search minds by title..."
-            value={searchInputValue}
-            onChange={handleSearchInputChange}
-            aria-label="Search minds by title"
-          />
-          {searchInputValue && (
+      {/* Filter panel content - hidden when collapsed (Req 5.2, 5.3) */}
+      {!filterPanelCollapsed && (
+        <div className="filter-controls">
+          {/* Reset Filters Button */}
+          <div className="filter-section">
             <button
               type="button"
-              className="text-search-clear"
-              onClick={handleClearSearch}
-              aria-label="Clear search"
-              title="Clear search"
+              className="reset-filters-button"
+              onClick={handleResetFilters}
+              disabled={!hasActiveFilters}
+              aria-label="Reset all filters"
+              title="Clear all filters and return to default view"
             >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Proximity Level Control Section */}
-      <div className="filter-section">
-        <div className="level-control-header">
-          <h3 className="filter-section-title">Proximity Level</h3>
-          <span className="level-control-value" aria-live="polite">
-            {filters.level} {filters.level === 1 ? 'hop' : 'hops'}
-          </span>
-        </div>
-        <div className="level-control-container">
-          <input
-            type="range"
-            min="0"
-            max="5"
-            step="1"
-            value={filters.level}
-            onChange={handleLevelChange}
-            className="level-control-slider"
-            aria-label="Proximity level in relationship hops"
-            aria-valuemin={0}
-            aria-valuemax={5}
-            aria-valuenow={filters.level}
-            aria-valuetext={`${filters.level} ${filters.level === 1 ? 'hop' : 'hops'}`}
-          />
-          <div className="level-control-labels">
-            <span>0</span>
-            <span>1</span>
-            <span>2</span>
-            <span>3</span>
-            <span>4</span>
-            <span>5</span>
-          </div>
-        </div>
-        <p className="level-control-help">
-          Controls how many relationship hops away from matching nodes to include in search results
-        </p>
-      </div>
-
-      {/* Node Type Filter Section */}
-      <div className="filter-section">
-        <div className="filter-controls-header">
-          <h3>Filter by Node Type</h3>
-          <div className="filter-controls-actions">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className="filter-action-button"
-              disabled={selectedCount === totalCount}
-              aria-label="Select all node types"
-            >
-              Select All
-            </button>
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="filter-action-button"
-              disabled={selectedCount === 0}
-              aria-label="Clear all node type selections"
-            >
-              Clear All
+              Reset Filters
             </button>
           </div>
-        </div>
 
-        <div className="filter-controls-list" role="group" aria-label="Node type filters">
-          {allNodeTypes.map(nodeType => {
-            const config = NODE_TYPE_CONFIGS[nodeType];
-            const count = nodeTypeCounts.get(nodeType) || 0;
-            const isSelected = filters.nodeTypes.has(nodeType);
-
-            return (
-              <label
-                key={nodeType}
-                className={`filter-control-item ${isSelected ? 'selected' : ''}`}
-              >
+          {/* Fast Add Mode Section (Req 1.1, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4) */}
+          <div className={`fast-add-section ${fastAdd.enabled ? 'active' : ''}`}>
+            <div className="fast-add-toggle">
+              <span className="fast-add-toggle-label">Fast Add Mode</span>
+              <label className="toggle-switch">
                 <input
                   type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleNodeTypeToggle(nodeType)}
-                  aria-label={`Filter ${config.label} nodes`}
+                  checked={fastAdd.enabled}
+                  onChange={handleFastAddToggle}
+                  aria-label="Toggle Fast Add Mode"
                 />
-                <span className="filter-control-label">
-                  {config.label}
-                </span>
-                <span className="filter-control-count" aria-label={`${count} nodes`}>
-                  ({count})
-                </span>
+                <span className="toggle-slider" />
               </label>
-            );
-          })}
-        </div>
+            </div>
 
-        {selectedCount > 0 && (
-          <div className="filter-controls-summary" aria-live="polite">
-            {selectedCount} of {totalCount} node types selected
+            {fastAdd.enabled && (
+              <div className="fast-add-controls">
+                {/* Mind Type Selector (Req 2.1, 2.2, 2.3) */}
+                <div className="fast-add-control-group">
+                  <label className="fast-add-control-label" htmlFor="fast-add-mind-type">
+                    Mind Type
+                  </label>
+                  <select
+                    id="fast-add-mind-type"
+                    className="fast-add-select"
+                    value={fastAdd.selectedMindType ?? ''}
+                    onChange={handleMindTypeChange}
+                    aria-label="Select mind type for fast add"
+                  >
+                    <option value="">-- Select Mind Type --</option>
+                    {allNodeTypes.map(nodeType => {
+                      const config = NODE_TYPE_CONFIGS[nodeType];
+                      return (
+                        <option key={nodeType} value={nodeType}>
+                          {config.label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Relationship Type Selector (Req 3.1) */}
+                <div className="fast-add-control-group">
+                  <label className="fast-add-control-label" htmlFor="fast-add-relationship-type">
+                    Relationship Type
+                  </label>
+                  <select
+                    id="fast-add-relationship-type"
+                    className="fast-add-select"
+                    value={fastAdd.selectedRelationshipType ?? ''}
+                    onChange={handleRelationshipTypeChange}
+                    aria-label="Select relationship type for fast add"
+                  >
+                    <option value="">-- Select Relationship Type --</option>
+                    {allRelationshipTypes.map(relType => (
+                      <option key={relType} value={relType}>
+                        {relType}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Direction Selector (Req 3.2, 3.3, 3.4) */}
+                <div className="fast-add-control-group">
+                  <label className="fast-add-control-label" htmlFor="fast-add-direction">
+                    Direction
+                  </label>
+                  <select
+                    id="fast-add-direction"
+                    className="fast-add-select"
+                    value={fastAdd.relationDirection}
+                    onChange={handleDirectionChange}
+                    aria-label="Select relationship direction for fast add"
+                  >
+                    <option value="source">Clicked node is source</option>
+                    <option value="target">Clicked node is target</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Text Search Section */}
+          <div className="filter-section">
+            <h3 className="filter-section-title">Search by Title</h3>
+            <div className="text-search-container">
+              <input
+                type="text"
+                className="text-search-input"
+                placeholder="Search minds by title..."
+                value={searchInputValue}
+                onChange={handleSearchInputChange}
+                aria-label="Search minds by title"
+              />
+              {searchInputValue && (
+                <button
+                  type="button"
+                  className="text-search-clear"
+                  onClick={handleClearSearch}
+                  aria-label="Clear search"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Proximity Level Control Section */}
+          <div className="filter-section">
+            <div className="level-control-header">
+              <h3 className="filter-section-title">Proximity Level</h3>
+              <span className="level-control-value" aria-live="polite">
+                {filters.level} {filters.level === 1 ? 'hop' : 'hops'}
+              </span>
+            </div>
+            <div className="level-control-container">
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="1"
+                value={filters.level}
+                onChange={handleLevelChange}
+                className="level-control-slider"
+                aria-label="Proximity level in relationship hops"
+                aria-valuemin={0}
+                aria-valuemax={10}
+                aria-valuenow={filters.level}
+                aria-valuetext={`${filters.level} ${filters.level === 1 ? 'hop' : 'hops'}`}
+              />
+              <div className="level-control-labels">
+                <span>0</span>
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+                <span>6</span>
+                <span>7</span>
+                <span>8</span>
+                <span>9</span>
+                <span>10</span>
+              </div>
+            </div>
+            <p className="level-control-help">
+              Controls how many relationship hops away from matching nodes to include in search results
+            </p>
+          </div>
+
+          {/* Node Type Filter Section */}
+          <div className="filter-section">
+            <div className="filter-controls-header">
+              <h3>Filter by Node Type</h3>
+              <div className="filter-controls-actions">
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="filter-action-button"
+                  disabled={selectedCount === totalCount}
+                  aria-label="Select all node types"
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="filter-action-button"
+                  disabled={selectedCount === 0}
+                  aria-label="Clear all node type selections"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            <div className="filter-controls-list" role="group" aria-label="Node type filters">
+              {allNodeTypes.map(nodeType => {
+                const config = NODE_TYPE_CONFIGS[nodeType];
+                const count = nodeTypeCounts.get(nodeType) || 0;
+                const isSelected = filters.nodeTypes.has(nodeType);
+
+                return (
+                  <label
+                    key={nodeType}
+                    className={`filter-control-item ${isSelected ? 'selected' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleNodeTypeToggle(nodeType)}
+                      aria-label={`Filter ${config.label} nodes`}
+                    />
+                    <span className="filter-control-label">
+                      {config.label}
+                    </span>
+                    <span className="filter-control-count" aria-label={`${count} nodes`}>
+                      ({count})
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {selectedCount > 0 && (
+              <div className="filter-controls-summary" aria-live="polite">
+                {selectedCount} of {totalCount} node types selected
+              </div>
+            )}
+          </div>
+
+          {/* Relationship Type Filter Section (Req 6.1, 6.5, 6.6) */}
+          <div className="filter-section">
+            <div className="filter-controls-header">
+              <h3>Filter by Relationship Type</h3>
+              <div className="filter-controls-actions">
+                <button
+                  type="button"
+                  onClick={handleRelationshipFilterSelectAll}
+                  className="filter-action-button"
+                  disabled={filters.relationshipTypes.size === allRelationshipTypes.length}
+                  aria-label="Select all relationship types"
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRelationshipFilterClearAll}
+                  className="filter-action-button"
+                  disabled={filters.relationshipTypes.size === 0}
+                  aria-label="Clear all relationship type selections"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            <div className="filter-controls-list" role="group" aria-label="Relationship type filters">
+              {allRelationshipTypes.map(relType => {
+                const isSelected = filters.relationshipTypes.has(relType);
+                return (
+                  <label
+                    key={relType}
+                    className={`filter-control-item ${isSelected ? 'selected' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleRelationshipTypeFilterToggle(relType)}
+                      aria-label={`Filter ${relType} relationships`}
+                    />
+                    <span className="filter-control-label">
+                      {relType}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {filters.relationshipTypes.size > 0 && (
+              <div className="filter-controls-summary" aria-live="polite">
+                {filters.relationshipTypes.size} of {allRelationshipTypes.length} relationship types selected
+              </div>
+            )}
+          </div>
+
+          {/* Direction Filter Section (Req 6.2, 6.6) */}
+          <div className="filter-section">
+            <h3 className="filter-section-title">Filter by Direction</h3>
+            <div className="direction-filter-group" role="radiogroup" aria-label="Edge direction filter">
+              {(['outgoing', 'incoming', 'both'] as const).map(direction => {
+                const label = direction.charAt(0).toUpperCase() + direction.slice(1);
+                const isSelected = filters.directionFilter === direction;
+                return (
+                  <label key={direction} className={`direction-filter-option ${isSelected ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="direction-filter"
+                      value={direction}
+                      checked={isSelected}
+                      onChange={() => handleDirectionFilterChange(direction)}
+                      aria-label={`Show ${label.toLowerCase()} edges`}
+                    />
+                    <span className="direction-filter-label">{label}</span>
+                  </label>
+                );
+              })}
+              {filters.directionFilter !== null && (
+                <button
+                  type="button"
+                  className="filter-action-button direction-filter-clear"
+                  onClick={() => handleDirectionFilterChange(null)}
+                  aria-label="Clear direction filter"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

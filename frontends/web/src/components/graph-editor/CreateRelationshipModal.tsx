@@ -51,6 +51,10 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
   const [occurrenceProbability, setOccurrenceProbability] = useState<string>('');
   const [detectabilityProbability, setDetectabilityProbability] = useState<string>('');
 
+  // Pick mode state from context
+  const pickMode = state.pickMode;
+  const isPickModeActive = pickMode !== null && pickMode.active;
+
   // Get list of available nodes
   const availableNodes = Array.from(state.minds.values());
 
@@ -66,6 +70,43 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
       setOccurrenceProbability('');
       setDetectabilityProbability('');
     }
+  }, [isOpen]);
+
+  // Accept picked node values from context when pick mode completes
+  useEffect(() => {
+    if (!isOpen) return;
+    // When pickMode transitions from active to null, the GraphCanvas handler
+    // will have set the picked node. We listen for external updates via a
+    // custom event dispatched by the canvas pick handler.
+  }, [isOpen, pickMode]);
+
+  /** Dispatch SET_PICK_MODE for the given field */
+  const handlePickFromGraph = (field: 'source' | 'target'): void => {
+    dispatch({ type: 'SET_PICK_MODE', payload: { active: true, field } });
+  };
+
+  /** Called externally (or via effect) when a node is picked from the graph */
+  const handleNodePicked = (nodeId: string, field: 'source' | 'target'): void => {
+    if (field === 'source') {
+      setSourceNodeId(nodeId);
+    } else {
+      setTargetNodeId(nodeId);
+    }
+  };
+
+  // Listen for pick-mode completion events from GraphCanvas
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePickComplete = (event: Event): void => {
+      const detail = (event as CustomEvent<{ nodeId: string; field: 'source' | 'target' }>).detail;
+      handleNodePicked(detail.nodeId, detail.field);
+    };
+
+    window.addEventListener('pick-mode-complete', handlePickComplete);
+    return () => {
+      window.removeEventListener('pick-mode-complete', handlePickComplete);
+    };
   }, [isOpen]);
 
   // Validate selections
@@ -138,6 +179,10 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
   };
 
   const handleCancel = (): void => {
+    // Cancel pick mode if active when modal closes
+    if (isPickModeActive) {
+      dispatch({ type: 'SET_PICK_MODE', payload: null });
+    }
     onClose();
   };
 
@@ -147,13 +192,13 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
 
   return (
     <div
-      className="modal-overlay" 
+      className={`modal-overlay${isPickModeActive ? ' modal-overlay--pick-mode' : ''}`}
       onClick={handleCancel}
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-relationship-title"
     >
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-content${isPickModeActive ? ' modal-content--pick-mode' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 id="create-relationship-title">Create Relationship</h2>
           <button
@@ -171,22 +216,32 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
             <label htmlFor="source-node">
               Source Node <span className="required" aria-label="required">*</span>
             </label>
-            <select
-              id="source-node"
-              value={sourceNodeId}
-              onChange={(e) => setSourceNodeId(e.target.value)}
-              className="form-select"
-              required
-              aria-required="true"
-              aria-label="Select source node for relationship"
-            >
-              <option value="">Select source node...</option>
-              {availableNodes.map((node) => (
-                <option key={node.uuid} value={node.uuid}>
-                  {node.title} ({mindTypeToNodeType((node as any).mind_type)})
-                </option>
-              ))}
-            </select>
+            <div className="form-field-with-pick">
+              <select
+                id="source-node"
+                value={sourceNodeId}
+                onChange={(e) => setSourceNodeId(e.target.value)}
+                className="form-select"
+                required
+                aria-required="true"
+                aria-label="Select source node for relationship"
+              >
+                <option value="">Select source node...</option>
+                {availableNodes.map((node) => (
+                  <option key={node.uuid} value={node.uuid}>
+                    {node.title} ({mindTypeToNodeType((node as any).mind_type)})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="button-pick-from-graph"
+                onClick={() => handlePickFromGraph('source')}
+                aria-label="Pick source node from graph"
+              >
+                Pick from graph
+              </button>
+            </div>
           </div>
 
           {/* Target Node Selection */}
@@ -194,22 +249,32 @@ export function CreateRelationshipModal({ isOpen, onClose }: CreateRelationshipM
             <label htmlFor="target-node">
               Target Node <span className="required" aria-label="required">*</span>
             </label>
-            <select
-              id="target-node"
-              value={targetNodeId}
-              onChange={(e) => setTargetNodeId(e.target.value)}
-              className="form-select"
-              required
-              aria-required="true"
-              aria-label="Select target node for relationship"
-            >
-              <option value="">Select target node...</option>
-              {availableNodes.map((node) => (
-                <option key={node.uuid} value={node.uuid}>
-                  {node.title} ({mindTypeToNodeType((node as any).mind_type)})
-                </option>
-              ))}
-            </select>
+            <div className="form-field-with-pick">
+              <select
+                id="target-node"
+                value={targetNodeId}
+                onChange={(e) => setTargetNodeId(e.target.value)}
+                className="form-select"
+                required
+                aria-required="true"
+                aria-label="Select target node for relationship"
+              >
+                <option value="">Select target node...</option>
+                {availableNodes.map((node) => (
+                  <option key={node.uuid} value={node.uuid}>
+                    {node.title} ({mindTypeToNodeType((node as any).mind_type)})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="button-pick-from-graph"
+                onClick={() => handlePickFromGraph('target')}
+                aria-label="Pick target node from graph"
+              >
+                Pick from graph
+              </button>
+            </div>
           </div>
 
           {/* Relationship Type Selection */}

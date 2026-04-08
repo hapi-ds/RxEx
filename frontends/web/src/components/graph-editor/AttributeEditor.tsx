@@ -22,7 +22,7 @@ import type { Mind } from '../../types/generated';
 import { getNodeTypeConfig } from './nodeTypeConfig';
 import type { AttributeConfig } from './nodeTypeConfig';
 import { TextInput, NumberInput, DateInput, EnumInput, ArrayInput } from './form-inputs';
-import { mindsAPI } from '../../services/api';
+import { mindsAPI, relationshipsAPI } from '../../services/api';
 import { ConfirmDialog } from './ConfirmDialog';
 import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
 import './AttributeEditor.css';
@@ -372,29 +372,98 @@ function NodeAttributeView({ node }: { node: Mind }) {
  * Displays all attributes of a selected relationship
  */
 function RelationshipAttributeView({ relationship }: { relationship: { id: string; type: string; source: string; target: string; properties?: Record<string, unknown> } }) {
-  const { state } = useGraphEditor();
+  const { state, dispatch } = useGraphEditor();
+  const { showSuccess, showError } = useToast();
   const { minds } = state;
 
   const sourceNode = minds.get(relationship.source);
   const targetNode = minds.get(relationship.target);
 
+  // Define expected properties per relationship type (keys must match backend storage names)
+  const RELATIONSHIP_PROPERTY_SCHEMAS: Record<string, Record<string, { label: string; type: 'number' }>> = {
+    CAN_OCCUR: {
+      p1: { label: 'P1', type: 'number' },
+      p2: { label: 'P2', type: 'number' },
+    },
+    LEAD_TO: {
+      occurrence_probability: { label: 'Occurrence Probability', type: 'number' },
+      detectability_probability: { label: 'Detectability Probability', type: 'number' },
+    },
+  };
+
+  const schema = RELATIONSHIP_PROPERTY_SCHEMAS[relationship.type] ?? {};
+  const schemaKeys = Object.keys(schema);
+
+  // Build initial editable values from schema + actual properties
+  const buildEditValues = (): Record<string, string> => {
+    const values: Record<string, string> = {};
+    const actual = relationship.properties ?? {};
+    for (const key of schemaKeys) {
+      const val = actual[key];
+      values[key] = val !== null && val !== undefined && val !== '' ? String(val) : '';
+    }
+    return values;
+  };
+
+  const [editValues, setEditValues] = useState<Record<string, string>>(buildEditValues);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Reset edit values when the selected relationship changes
+  useEffect(() => {
+    setEditValues(buildEditValues());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relationship.id, relationship.properties]);
+
+  const handleFieldChange = (key: string, value: string): void => {
+    setEditValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const hasChanges = (): boolean => {
+    const actual = relationship.properties ?? {};
+    for (const key of schemaKeys) {
+      const current = actual[key];
+      const currentStr = current !== null && current !== undefined && current !== '' ? String(current) : '';
+      if (editValues[key] !== currentStr) return true;
+    }
+    return false;
+  };
+
+  const handleSave = async (): Promise<void> => {
+    setIsSaving(true);
+    try {
+      // Build properties with parsed numeric values
+      const updatedProps: Record<string, unknown> = { ...(relationship.properties ?? {}) };
+      for (const key of schemaKeys) {
+        const val = editValues[key];
+        if (val === '') {
+          updatedProps[key] = null;
+        } else {
+          const num = parseFloat(val);
+          updatedProps[key] = isNaN(num) ? val : num;
+        }
+      }
+
+      const updated = await relationshipsAPI.update(relationship.id, { properties: updatedProps });
+      dispatch({ type: 'UPDATE_RELATIONSHIP', payload: updated });
+      showSuccess('Relationship properties saved');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to save relationship';
+      showError(msg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Also show any extra properties that exist on the relationship but aren't in the schema
+  const extraProps = Object.entries(relationship.properties ?? {}).filter(
+    ([key]) => !schemaKeys.includes(key)
+  );
+
   const formatValue = (value: unknown): string => {
-    if (value === null || value === undefined) {
-      return '—';
-    }
-
-    if (Array.isArray(value)) {
-      return value.length > 0 ? value.join(', ') : '—';
-    }
-
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
-
-    if (typeof value === 'object') {
-      return JSON.stringify(value, null, 2);
-    }
-
+    if (value === null || value === undefined || value === '') return '—';
+    if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'object') return JSON.stringify(value, null, 2);
     return String(value);
   };
 
@@ -420,22 +489,49 @@ function RelationshipAttributeView({ relationship }: { relationship: { id: strin
           />
         </section>
 
-        {relationship.properties && Object.keys(relationship.properties).length > 0 && (
+        {schemaKeys.length > 0 && (
           <section className="attribute-section" aria-labelledby="properties-heading">
             <h3 id="properties-heading">Properties</h3>
-            {Object.entries(relationship.properties).map(([key, value]) => (
-              <ReadOnlyField 
-                key={key} 
-                label={formatLabel(key)} 
-                value={formatValue(value)} 
-              />
+            {schemaKeys.map(key => {
+              const fieldSchema = schema[key];
+              return (
+                <div key={key} className="attribute-field">
+                  <label htmlFor={`rel-prop-${key}`}>{fieldSchema.label}</label>
+                  <input
+                    id={`rel-prop-${key}`}
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={editValues[key] ?? ''}
+                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                    className="form-input"
+                    placeholder="0.0 – 1.0"
+                    aria-label={fieldSchema.label}
+                  />
+                </div>
+              );
+            })}
+          </section>
+        )}
+
+        {extraProps.length > 0 && (
+          <section className="attribute-section" aria-labelledby="extra-properties-heading">
+            <h3 id="extra-properties-heading">Other Properties</h3>
+            {extraProps.map(([key, value]) => (
+              <ReadOnlyField key={key} label={formatLabel(key)} value={formatValue(value)} />
             ))}
           </section>
         )}
 
         <div className="attribute-editor-actions" role="group" aria-label="Relationship actions">
-          <button className="btn btn-primary" disabled aria-label="Save relationship (not yet implemented)">
-            Save
+          <button
+            className="btn btn-primary"
+            disabled={!hasChanges() || isSaving}
+            onClick={handleSave}
+            aria-label="Save relationship properties"
+          >
+            {isSaving ? 'Saving…' : 'Save'}
           </button>
           <button className="btn btn-danger" disabled aria-label="Delete relationship (not yet implemented)">
             Delete

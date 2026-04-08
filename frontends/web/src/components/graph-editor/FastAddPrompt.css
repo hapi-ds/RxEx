@@ -1,0 +1,125 @@
+/**
+ * FastAddPrompt Styles
+ * Floating form that appears near a right-clicked node for fast-add input
+ */
+
+.fast-add-prompt-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+}
+
+.fast-add-prompt {
+  position: fixed;
+  z-index: 1001;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 280px;
+  animation: fastAddSlideIn 0.15s ease-out;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@keyframes fastAddSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fast-add-prompt-header {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.fast-add-prompt-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.fast-add-prompt-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fast-add-prompt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fast-add-prompt-field label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.fast-add-prompt-field input {
+  padding: 6px 10px;
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.fast-add-prompt-field input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.fast-add-prompt-footer {
+  padding: 8px 16px 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.fast-add-prompt-footer button {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.fast-add-prompt-footer button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.fast-add-prompt-btn-cancel {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.fast-add-prompt-btn-cancel:hover {
+  background-color: #e5e7eb;
+}
+
+.fast-add-prompt-btn-submit {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.fast-add-prompt-btn-submit:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.fast-add-prompt-btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

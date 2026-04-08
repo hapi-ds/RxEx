@@ -1559,4 +1559,263 @@ describe('GraphEditorContext', () => {
       expect(result.current.state.visibleNodes.length).toBe(4);
     });
   });
+
+  describe('Relationship type filtering', () => {
+    const mindA: Mind = {
+      __primarylabel__: 'Project',
+      uuid: 'a',
+      title: 'A',
+      version: 1,
+      creator: 'user',
+      start_date: '2024-01-01',
+      end_date: '2024-12-31',
+    };
+    const mindB: Mind = {
+      __primarylabel__: 'Task',
+      uuid: 'b',
+      title: 'B',
+      version: 1,
+      creator: 'user',
+      priority: 'medium',
+    };
+    const mindC: Mind = {
+      __primarylabel__: 'Task',
+      uuid: 'c',
+      title: 'C',
+      version: 1,
+      creator: 'user',
+      priority: 'high',
+    };
+    const relAB: Relationship = { id: 'r1', type: 'DEPENDS_ON', source: 'a', target: 'b' };
+    const relBC: Relationship = { id: 'r2', type: 'CONTAINS', source: 'b', target: 'c' };
+    const relAC: Relationship = { id: 'r3', type: 'DEPENDS_ON', source: 'a', target: 'c' };
+
+    it('should show all edges when relationship type filter is empty', () => {
+      const { result } = renderHook(() => useGraphEditor(), { wrapper });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_MINDS', payload: [mindA, mindB, mindC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIPS', payload: [relAB, relBC, relAC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: new Set() });
+      });
+
+      expect(result.current.state.visibleEdges).toContain('r1');
+      expect(result.current.state.visibleEdges).toContain('r2');
+      expect(result.current.state.visibleEdges).toContain('r3');
+    });
+
+    it('should show only edges matching selected relationship types', () => {
+      const { result } = renderHook(() => useGraphEditor(), { wrapper });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_MINDS', payload: [mindA, mindB, mindC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIPS', payload: [relAB, relBC, relAC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: new Set(['DEPENDS_ON']) });
+      });
+
+      expect(result.current.state.visibleEdges).toContain('r1');
+      expect(result.current.state.visibleEdges).not.toContain('r2');
+      expect(result.current.state.visibleEdges).toContain('r3');
+    });
+
+    it('should show only CONTAINS edges when filtered', () => {
+      const { result } = renderHook(() => useGraphEditor(), { wrapper });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_MINDS', payload: [mindA, mindB, mindC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIPS', payload: [relAB, relBC, relAC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: new Set(['CONTAINS']) });
+      });
+
+      expect(result.current.state.visibleEdges).not.toContain('r1');
+      expect(result.current.state.visibleEdges).toContain('r2');
+      expect(result.current.state.visibleEdges).not.toContain('r3');
+    });
+
+    it('should compose with existing node type filters', () => {
+      const { result } = renderHook(() => useGraphEditor(), { wrapper });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_MINDS', payload: [mindA, mindB, mindC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIPS', payload: [relAB, relBC, relAC] });
+        // Even with relationship type filter, edges with filtered-out endpoints are hidden
+        result.current.dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: new Set(['DEPENDS_ON']) });
+      });
+
+      // Both DEPENDS_ON edges should be visible (r1: a->b, r3: a->c)
+      expect(result.current.state.visibleEdges).toContain('r1');
+      expect(result.current.state.visibleEdges).toContain('r3');
+      expect(result.current.state.visibleEdges).not.toContain('r2');
+    });
+  });
+
+  describe('Direction filtering', () => {
+    const mindA: Mind = {
+      __primarylabel__: 'Project',
+      uuid: 'a',
+      title: 'A',
+      version: 1,
+      creator: 'user',
+      start_date: '2024-01-01',
+      end_date: '2024-12-31',
+    };
+    const mindB: Mind = {
+      __primarylabel__: 'Task',
+      uuid: 'b',
+      title: 'B',
+      version: 1,
+      creator: 'user',
+      priority: 'medium',
+    };
+    const mindC: Mind = {
+      __primarylabel__: 'Task',
+      uuid: 'c',
+      title: 'C',
+      version: 1,
+      creator: 'user',
+      priority: 'high',
+    };
+    // a -> b (outgoing from a)
+    const relAB: Relationship = { id: 'r1', type: 'DEPENDS_ON', source: 'a', target: 'b' };
+    // c -> a (incoming to a)
+    const relCA: Relationship = { id: 'r2', type: 'CONTAINS', source: 'c', target: 'a' };
+    // b -> c (neither outgoing from a nor incoming to a)
+    const relBC: Relationship = { id: 'r3', type: 'DEPENDS_ON', source: 'b', target: 'c' };
+
+    it('should show all edges when direction filter is null', () => {
+      const wrapperWithFocus = ({ children }: { children: ReactNode }) => (
+        <GraphEditorProvider
+          initialMinds={[mindA, mindB, mindC]}
+          initialRelationships={[relAB, relCA, relBC]}
+          initialFocusedNodeId="a"
+        >
+          {children}
+        </GraphEditorProvider>
+      );
+      const { result } = renderHook(() => useGraphEditor(), { wrapper: wrapperWithFocus });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_LEVEL', payload: 2 });
+        result.current.dispatch({ type: 'SET_DIRECTION_FILTER', payload: null });
+      });
+
+      expect(result.current.state.visibleEdges).toContain('r1');
+      expect(result.current.state.visibleEdges).toContain('r2');
+      expect(result.current.state.visibleEdges).toContain('r3');
+    });
+
+    it('should show all edges when direction filter is both', () => {
+      const wrapperWithFocus = ({ children }: { children: ReactNode }) => (
+        <GraphEditorProvider
+          initialMinds={[mindA, mindB, mindC]}
+          initialRelationships={[relAB, relCA, relBC]}
+          initialFocusedNodeId="a"
+        >
+          {children}
+        </GraphEditorProvider>
+      );
+      const { result } = renderHook(() => useGraphEditor(), { wrapper: wrapperWithFocus });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_LEVEL', payload: 2 });
+        result.current.dispatch({ type: 'SET_DIRECTION_FILTER', payload: 'both' });
+      });
+
+      expect(result.current.state.visibleEdges).toContain('r1');
+      expect(result.current.state.visibleEdges).toContain('r2');
+      expect(result.current.state.visibleEdges).toContain('r3');
+    });
+
+    it('should show only outgoing edges from focused node', () => {
+      const wrapperWithFocus = ({ children }: { children: ReactNode }) => (
+        <GraphEditorProvider
+          initialMinds={[mindA, mindB, mindC]}
+          initialRelationships={[relAB, relCA, relBC]}
+          initialFocusedNodeId="a"
+        >
+          {children}
+        </GraphEditorProvider>
+      );
+      const { result } = renderHook(() => useGraphEditor(), { wrapper: wrapperWithFocus });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_LEVEL', payload: 2 });
+        result.current.dispatch({ type: 'SET_DIRECTION_FILTER', payload: 'outgoing' });
+      });
+
+      // r1: a->b (outgoing from a) ✓
+      expect(result.current.state.visibleEdges).toContain('r1');
+      // r2: c->a (incoming to a) ✗
+      expect(result.current.state.visibleEdges).not.toContain('r2');
+      // r3: b->c (not connected to a as source) ✗
+      expect(result.current.state.visibleEdges).not.toContain('r3');
+    });
+
+    it('should show only incoming edges to focused node', () => {
+      const wrapperWithFocus = ({ children }: { children: ReactNode }) => (
+        <GraphEditorProvider
+          initialMinds={[mindA, mindB, mindC]}
+          initialRelationships={[relAB, relCA, relBC]}
+          initialFocusedNodeId="a"
+        >
+          {children}
+        </GraphEditorProvider>
+      );
+      const { result } = renderHook(() => useGraphEditor(), { wrapper: wrapperWithFocus });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_LEVEL', payload: 2 });
+        result.current.dispatch({ type: 'SET_DIRECTION_FILTER', payload: 'incoming' });
+      });
+
+      // r1: a->b (outgoing from a) ✗
+      expect(result.current.state.visibleEdges).not.toContain('r1');
+      // r2: c->a (incoming to a) ✓
+      expect(result.current.state.visibleEdges).toContain('r2');
+      // r3: b->c (not connected to a as target) ✗
+      expect(result.current.state.visibleEdges).not.toContain('r3');
+    });
+
+    it('should not apply direction filter when no focused node', () => {
+      const { result } = renderHook(() => useGraphEditor(), { wrapper });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_MINDS', payload: [mindA, mindB, mindC] });
+        result.current.dispatch({ type: 'SET_RELATIONSHIPS', payload: [relAB, relCA, relBC] });
+        result.current.dispatch({ type: 'SET_DIRECTION_FILTER', payload: 'outgoing' });
+      });
+
+      // No focused node, so direction filter should be a no-op
+      expect(result.current.state.visibleEdges).toContain('r1');
+      expect(result.current.state.visibleEdges).toContain('r2');
+      expect(result.current.state.visibleEdges).toContain('r3');
+    });
+
+    it('should compose direction filter with relationship type filter', () => {
+      const wrapperWithFocus = ({ children }: { children: ReactNode }) => (
+        <GraphEditorProvider
+          initialMinds={[mindA, mindB, mindC]}
+          initialRelationships={[relAB, relCA, relBC]}
+          initialFocusedNodeId="a"
+        >
+          {children}
+        </GraphEditorProvider>
+      );
+      const { result } = renderHook(() => useGraphEditor(), { wrapper: wrapperWithFocus });
+
+      act(() => {
+        result.current.dispatch({ type: 'SET_LEVEL', payload: 2 });
+        // Filter to DEPENDS_ON only + outgoing from a
+        result.current.dispatch({ type: 'SET_RELATIONSHIP_TYPE_FILTER', payload: new Set(['DEPENDS_ON']) });
+        result.current.dispatch({ type: 'SET_DIRECTION_FILTER', payload: 'outgoing' });
+      });
+
+      // r1: a->b, DEPENDS_ON, outgoing from a ✓
+      expect(result.current.state.visibleEdges).toContain('r1');
+      // r2: c->a, CONTAINS (filtered out by type) ✗
+      expect(result.current.state.visibleEdges).not.toContain('r2');
+      // r3: b->c, DEPENDS_ON but not outgoing from a ✗
+      expect(result.current.state.visibleEdges).not.toContain('r3');
+    });
+  });
 });

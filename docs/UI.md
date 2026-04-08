@@ -32,3 +32,27 @@ The graph editor renders Mind nodes and their relationships as an interactive no
 ## Navigation
 
 All protected pages share a sidebar/nav layout. After login, the user lands on `/dashboard`. The JWT token is stored in `localStorage` and attached to every API request automatically.
+
+## Fast Add Mode
+
+Right-click any node to instantly create a new connected mind — no forms or modals needed. Pre-select mind type, relationship type, and direction in the filter panel, then right-click to build the graph rapidly. Left-click behavior (select/edit) is unchanged. A visual indicator on the canvas confirms the mode is active.
+
+## Focus Mode
+
+Shift-click any node to enter focus mode — the graph narrows to that node and its neighborhood. The proximity slider (0–10 hops) controls how far out the neighborhood extends. Combine with relationship type and direction filters to trace specific paths (e.g. only incoming LEAD_TO edges up to 5 hops). Shift-click the focused node again to exit. A badge at the top of the canvas shows the focused node's name.
+
+## Collapsible Filter Panel
+
+The filter panel collapses to a thin toggle strip, giving the graph canvas full width when filters aren't needed.
+
+## Relationship & Direction Filters
+
+Filter visible edges by relationship type (multi-select) and direction (incoming/outgoing/both) relative to the focused node. Proximity level supports up to 10 hops. Orphaned nodes are automatically hidden when direction or relationship type filters are active.
+
+## Editable Relationship Properties
+
+Selecting a relationship shows its properties in the attribute editor. All expected fields (e.g. Occurrence Probability, Detectability Probability for LEAD_TO; P1, P2 for CAN_OCCUR) are always visible — even when empty — and editable inline with a Save button.
+
+## Click-to-Select in Relationship Editor
+
+When creating a relationship, click "Pick from graph" next to the source or target field, then click a node on the canvas to populate it. Press Escape to cancel pick mode.

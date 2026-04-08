@@ -1,0 +1,11 @@
+/* GraphCanvas pick-mode visual indicator (Req 8.5) */
+.graph-canvas-wrapper--pick-mode {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+  border-radius: 4px;
+  cursor: crosshair;
+}
+
+.graph-canvas-wrapper--pick-mode .react-flow__node {
+  cursor: crosshair;
+}

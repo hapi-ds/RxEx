@@ -11,10 +11,12 @@
 import React, { createContext, useContext, useReducer, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { Mind, NodeType } from '../../types/generated';
+import type { RelationshipType } from '../../types';
 import { mindTypeToNodeType } from '../../utils/mindTypeUtils';
 
 // Re-export types for convenience
 export type { Mind, NodeType } from '../../types/generated';
+export type { RelationshipType } from '../../types';
 
 // ============================================================================
 // Types
@@ -42,6 +44,24 @@ export interface Relationship {
 }
 
 /**
+ * Fast Add mode state for streamlined node + relationship creation
+ */
+export interface FastAddState {
+  enabled: boolean;
+  selectedMindType: NodeType | null;
+  selectedRelationshipType: RelationshipType | null;
+  relationDirection: 'source' | 'target';
+}
+
+/**
+ * Pick mode state for click-to-select in relationship editor
+ */
+export interface PickModeState {
+  active: boolean;
+  field: 'source' | 'target';
+}
+
+/**
  * Filter state
  */
 export interface FilterState {
@@ -49,6 +69,8 @@ export interface FilterState {
   textSearch: string;
   level: number;
   focusedNodeId: UUID | null;
+  relationshipTypes: Set<RelationshipType>;
+  directionFilter: 'outgoing' | 'incoming' | 'both' | null;
 }
 
 /**
@@ -100,6 +122,9 @@ export interface AppState {
   selection: SelectionState;
   layout: LayoutConfig;
   history: HistoryState;
+  fastAdd: FastAddState;
+  pickMode: PickModeState | null;
+  filterPanelCollapsed: boolean;
   
   // Derived state (computed from raw data + filters)
   visibleNodes: UUID[];
@@ -139,7 +164,15 @@ export type Action =
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null };
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_FAST_ADD_ENABLED'; payload: boolean }
+  | { type: 'SET_FAST_ADD_MIND_TYPE'; payload: NodeType | null }
+  | { type: 'SET_FAST_ADD_RELATIONSHIP_TYPE'; payload: RelationshipType | null }
+  | { type: 'SET_FAST_ADD_DIRECTION'; payload: 'source' | 'target' }
+  | { type: 'SET_PICK_MODE'; payload: PickModeState | null }
+  | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
+  | { type: 'SET_RELATIONSHIP_TYPE_FILTER'; payload: Set<RelationshipType> }
+  | { type: 'SET_DIRECTION_FILTER'; payload: 'outgoing' | 'incoming' | 'both' | null };
 
 // ============================================================================
 // Initial State
@@ -153,6 +186,8 @@ const initialState: AppState = {
     textSearch: '',
     level: 0,
     focusedNodeId: null,
+    relationshipTypes: new Set(),
+    directionFilter: null,
   },
   selection: {
     selectedNodeId: null,
@@ -167,6 +202,14 @@ const initialState: AppState = {
     future: [],
     maxSize: 50,
   },
+  fastAdd: {
+    enabled: false,
+    selectedMindType: null,
+    selectedRelationshipType: null,
+    relationDirection: 'source',
+  },
+  pickMode: null,
+  filterPanelCollapsed: false,
   visibleNodes: [],
   visibleEdges: [],
   canUndo: false,
@@ -315,6 +358,59 @@ function applyFilters(
     visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)
   );
   
+  // 5. Relationship type filter (Req 6.3, 6.5)
+  if (filters.relationshipTypes.size > 0) {
+    edgeArray = edgeArray.filter(e =>
+      filters.relationshipTypes.has(e.type as RelationshipType)
+    );
+  }
+  
+  // 6. Direction filter relative to focused/selected node (Req 6.4)
+  //    Uses BFS to follow edges in the specified direction across multiple hops.
+  if (filters.directionFilter && filters.directionFilter !== 'both' && filters.focusedNodeId) {
+    const refNodeId = filters.focusedNodeId;
+    const reachable = new Set<UUID>([refNodeId]);
+    const queue: UUID[] = [refNodeId];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const e of edgeArray) {
+        if (filters.directionFilter === 'incoming' && e.target === current && !reachable.has(e.source)) {
+          reachable.add(e.source);
+          queue.push(e.source);
+        }
+        if (filters.directionFilter === 'outgoing' && e.source === current && !reachable.has(e.target)) {
+          reachable.add(e.target);
+          queue.push(e.target);
+        }
+      }
+    }
+
+    edgeArray = edgeArray.filter(e => {
+      if (filters.directionFilter === 'incoming') {
+        return reachable.has(e.source) && reachable.has(e.target);
+      }
+      if (filters.directionFilter === 'outgoing') {
+        return reachable.has(e.source) && reachable.has(e.target);
+      }
+      return true;
+    });
+  }
+  
+  // 7. Remove orphaned nodes after edge filtering (steps 5 & 6 may leave
+  //    nodes that no longer have any visible edges). Always keep the focused node.
+  if (filters.relationshipTypes.size > 0 || (filters.directionFilter && filters.directionFilter !== 'both')) {
+    const connectedNodeIds = new Set<UUID>();
+    edgeArray.forEach(e => {
+      connectedNodeIds.add(e.source);
+      connectedNodeIds.add(e.target);
+    });
+    if (filters.focusedNodeId) {
+      connectedNodeIds.add(filters.focusedNodeId);
+    }
+    nodeArray = nodeArray.filter(n => connectedNodeIds.has(n.uuid!));
+  }
+
   return {
     visibleNodes: nodeArray.map(n => n.uuid!),
     visibleEdges: edgeArray.map(e => e.id),
@@ -615,6 +711,8 @@ function reducer(state: AppState, action: Action): AppState {
         textSearch: '',
         level: 0,
         focusedNodeId: null,
+        relationshipTypes: new Set(),
+        directionFilter: null,
       };
       const { visibleNodes, visibleEdges } = applyFilters(state.minds, state.relationships, newFilters);
       
@@ -827,6 +925,82 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     
+    case 'SET_FAST_ADD_ENABLED': {
+      if (action.payload) {
+        return {
+          ...state,
+          fastAdd: { ...state.fastAdd, enabled: true },
+        };
+      }
+      // Disabling: reset pre-selections to defaults (Req 1.1, 1.4)
+      return {
+        ...state,
+        fastAdd: {
+          enabled: false,
+          selectedMindType: null,
+          selectedRelationshipType: null,
+          relationDirection: 'source',
+        },
+      };
+    }
+
+    case 'SET_FAST_ADD_MIND_TYPE': {
+      return {
+        ...state,
+        fastAdd: { ...state.fastAdd, selectedMindType: action.payload },
+      };
+    }
+
+    case 'SET_FAST_ADD_RELATIONSHIP_TYPE': {
+      return {
+        ...state,
+        fastAdd: { ...state.fastAdd, selectedRelationshipType: action.payload },
+      };
+    }
+
+    case 'SET_FAST_ADD_DIRECTION': {
+      return {
+        ...state,
+        fastAdd: { ...state.fastAdd, relationDirection: action.payload },
+      };
+    }
+
+    case 'SET_PICK_MODE': {
+      return {
+        ...state,
+        pickMode: action.payload,
+      };
+    }
+
+    case 'SET_FILTER_PANEL_COLLAPSED': {
+      return {
+        ...state,
+        filterPanelCollapsed: action.payload,
+      };
+    }
+
+    case 'SET_RELATIONSHIP_TYPE_FILTER': {
+      const newFilters = { ...state.filters, relationshipTypes: action.payload };
+      const { visibleNodes, visibleEdges } = applyFilters(state.minds, state.relationships, newFilters);
+      return {
+        ...state,
+        filters: newFilters,
+        visibleNodes,
+        visibleEdges,
+      };
+    }
+
+    case 'SET_DIRECTION_FILTER': {
+      const newFilters = { ...state.filters, directionFilter: action.payload };
+      const { visibleNodes, visibleEdges } = applyFilters(state.minds, state.relationships, newFilters);
+      return {
+        ...state,
+        filters: newFilters,
+        visibleNodes,
+        visibleEdges,
+      };
+    }
+
     case 'SET_LOADING': {
       return {
         ...state,
