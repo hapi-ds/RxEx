@@ -72,10 +72,10 @@ class BaseMind(BaseNode):
 
     # GraphRAG properties (written by embedding and community detection services)
     embedding: list[float] | None = Field(
-        default=None, description="Vector embedding for semantic search", exclude=True
+        default=None, description="Vector embedding for semantic search"
     )
     community_id: int | None = Field(
-        default=None, description="Community assignment from detection algorithm", exclude=True
+        default=None, description="Community assignment from detection algorithm"
     )
 
     @field_serializer('uuid')

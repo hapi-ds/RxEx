@@ -191,12 +191,17 @@ class MindService:
             "uuid",
             "title",
             "version",
+            "created_at",
             "updated_at",
             "creator",
             "status",
             "description",
+            "tags",
             "element_id",
             "id",
+            # GraphRAG internal properties — not part of the domain model
+            "embedding",
+            "community_id",
         }
 
         # Extract all attributes from the node
