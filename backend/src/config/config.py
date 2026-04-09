@@ -1,7 +1,10 @@
+import logging
 from typing import List, Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -51,6 +54,22 @@ class Settings(BaseSettings):
     ai_request_timeout: int = Field(default=60, description="AI provider request timeout in seconds")
     ai_max_context_tokens: int = Field(default=8000, description="Maximum context tokens for AI prompts")
     ai_max_history_messages: int = Field(default=20, description="Maximum conversation history messages sent to AI")
+
+    # Embedding Provider Configuration
+    embedding_provider: str = Field(default="none", description="Embedding provider type (none, openai, lm-studio, custom)")
+    embedding_api_endpoint: Optional[str] = Field(default=None, description="Embedding provider API endpoint URL")
+    embedding_api_key: Optional[str] = Field(default=None, description="Embedding provider API key (optional for local providers)")
+    embedding_model_name: Optional[str] = Field(default=None, description="Embedding model name")
+    embedding_dimensions: int = Field(default=1536, description="Embedding vector dimensions")
+
+    # GraphRAG Configuration
+    graphrag_enabled: bool = Field(default=False, description="Enable GraphRAG knowledge base features")
+    graphrag_top_k: int = Field(default=10, ge=1, description="Number of top results for semantic search")
+    graphrag_similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0, description="Minimum cosine similarity score for retrieval")
+    graphrag_traversal_depth: int = Field(default=2, ge=1, description="Maximum graph traversal depth from seed nodes")
+    graphrag_max_subgraph_nodes: int = Field(default=50, ge=1, description="Maximum nodes in traversal subgraph")
+    graphrag_default_mode: str = Field(default="auto", description="Default retrieval mode (auto, local, global, hybrid)")
+    graphrag_community_schedule_hours: int = Field(default=0, ge=0, description="Community detection schedule in hours (0 = manual only)")
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -119,9 +138,37 @@ class Settings(BaseSettings):
             raise ValueError("ai_max_context_tokens must be positive")
         return v
 
+    @field_validator("embedding_provider")
+    @classmethod
+    def validate_embedding_provider(cls, v: str) -> str:
+        """Validate embedding provider is a supported type."""
+        valid_providers = ["none", "openai", "lm-studio", "custom"]
+        v_lower = v.lower()
+        if v_lower not in valid_providers:
+            raise ValueError(f"embedding_provider must be one of {valid_providers}, got {v}")
+        return v_lower
+
+    @field_validator("embedding_dimensions")
+    @classmethod
+    def validate_embedding_dimensions(cls, v: int) -> int:
+        """Validate embedding dimensions is positive."""
+        if v <= 0:
+            raise ValueError("embedding_dimensions must be positive")
+        return v
+
+    @field_validator("graphrag_default_mode")
+    @classmethod
+    def validate_graphrag_default_mode(cls, v: str) -> str:
+        """Validate GraphRAG default mode is a supported value."""
+        valid_modes = ["auto", "local", "global", "hybrid"]
+        v_lower = v.lower()
+        if v_lower not in valid_modes:
+            raise ValueError(f"graphrag_default_mode must be one of {valid_modes}, got {v}")
+        return v_lower
+
     @model_validator(mode="after")
     def validate_ai_config(self) -> "Settings":
-        """Validate cross-field AI configuration requirements."""
+        """Validate cross-field AI and GraphRAG configuration requirements."""
         if self.ai_provider != "none":
             if not self.ai_api_endpoint:
                 raise ValueError(
@@ -135,6 +182,31 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"ai_api_key is required when ai_provider is '{self.ai_provider}'"
                 )
+
+        # Validate embedding provider configuration
+        if self.embedding_provider != "none":
+            if not self.embedding_api_endpoint:
+                logger.warning(
+                    "embedding_api_endpoint is not set but embedding_provider is '%s'",
+                    self.embedding_provider,
+                )
+            if not self.embedding_model_name:
+                logger.warning(
+                    "embedding_model_name is not set but embedding_provider is '%s'",
+                    self.embedding_provider,
+                )
+            if self.embedding_provider == "openai" and not self.embedding_api_key:
+                logger.warning(
+                    "embedding_api_key is not set for openai embedding provider",
+                )
+
+        # Warn if GraphRAG is enabled but embedding provider is not configured
+        if self.graphrag_enabled and self.embedding_provider == "none":
+            logger.warning(
+                "graphrag_enabled is True but embedding_provider is 'none'; "
+                "GraphRAG features will not work without an embedding provider",
+            )
+
         return self
 
     def __init__(self, **kwargs):

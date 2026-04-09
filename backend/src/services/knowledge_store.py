@@ -4,8 +4,10 @@ Knowledge Store service for AI chat context generation.
 This module implements the KnowledgeStore class that retrieves project context
 from Neo4j for AI prompt generation. It handles schema information (relationship
 types, node types) and risk data, with simple in-memory caching for schema data.
+When GraphRAG is enabled, it integrates semantic search, graph traversal, and
+community summaries into the context prompt.
 
-**Validates: Requirements 2.1, 2.2, 2.3, 2.6**
+**Validates: Requirements 2.1, 2.2, 2.3, 2.6, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 7.4**
 """
 
 import logging
@@ -14,7 +16,10 @@ from typing import Any, Optional
 
 from neontology import GraphConnection
 
-from ..config.config import settings
+from ..config.config import Settings, settings
+from ..schemas.graphrag import RetrievalResult
+from ..services.embedding_service import EmbeddingService
+from ..services.graphrag_retriever import GraphRAGRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -414,18 +419,95 @@ class KnowledgeStore:
         token_count = int(word_count / 0.75)
         return token_count
 
-    async def generate_context_prompt(self) -> str:
-        """
-        Generate a Context_Prompt containing relevant project information.
+    def _format_retrieval_results(self, results: RetrievalResult) -> str:
+        """Format GraphRAG retrieval results as structured text for prompt inclusion.
 
-        This method combines relationship types, node types, and risk analyses
-        into a structured prompt for the AI. It enforces the token limit by
-        truncating content if necessary.
+        Formats seed nodes, subgraph edges, and community summaries into
+        readable sections with source attribution (node UUIDs and titles).
+
+        Args:
+            results: The retrieval result from GraphRAGRetriever.
 
         Returns:
-            Formatted context prompt string within token limit
+            Formatted string containing all retrieval sections.
 
-        **Validates: Requirements 2.7, 2.8**
+        **Validates: Requirements 5.1, 5.2, 5.6**
+        """
+        sections: list[str] = []
+
+        # Format seed nodes (ordered by descending score from retriever)
+        if results.seed_nodes:
+            lines = ["## Relevant Nodes"]
+            for node in results.seed_nodes:
+                desc = f": {node.description}" if node.description else ""
+                lines.append(
+                    f"- [{node.uuid}] {node.title} "
+                    f"({node.mind_type}, score: {node.score:.2f}){desc}"
+                )
+            sections.append("\n".join(lines))
+
+        # Format subgraph edges
+        if results.subgraph_edges:
+            lines = ["## Related Nodes"]
+            for edge in results.subgraph_edges:
+                lines.append(
+                    f"- {edge.source_uuid} --[{edge.relationship_type}]--> {edge.target_uuid}"
+                )
+            sections.append("\n".join(lines))
+
+        # Format community summaries (ordered by descending relevance from retriever)
+        if results.community_summaries:
+            lines = ["## Community Insights"]
+            for cs in results.community_summaries:
+                lines.append(
+                    f"Community {cs.community_id} ({cs.node_count} nodes): {cs.summary}"
+                )
+            sections.append("\n".join(lines))
+
+        return "\n\n".join(sections)
+
+    def _allocate_token_budget(self, mode: str, total_budget: int) -> tuple[int, int]:
+        """Allocate token budget between local and global context.
+
+        For hybrid mode, splits the budget 70% local / 30% global by default.
+        For local mode, all budget goes to local. For global, all to global.
+
+        Args:
+            mode: Resolved retrieval mode (``"local"``, ``"global"``, or ``"hybrid"``).
+            total_budget: Total tokens available for GraphRAG context.
+
+        Returns:
+            Tuple of (local_budget, global_budget).
+
+        **Validates: Requirement 5.5**
+        """
+        if mode == "hybrid":
+            return (int(total_budget * 0.7), int(total_budget * 0.3))
+        if mode == "global":
+            return (0, total_budget)
+        # "local" or any other value
+        return (total_budget, 0)
+
+    async def generate_context_prompt(
+        self, query: str | None = None, retrieval_mode: str = "auto"
+    ) -> str:
+        """Generate a Context_Prompt containing relevant project information.
+
+        When ``graphrag_enabled`` is True and a ``query`` is provided, the prompt
+        includes GraphRAG retrieval results (semantic search hits, graph traversal
+        context, community summaries) alongside the existing schema information.
+        When disabled or no query is given, behaviour is identical to the original
+        implementation.
+
+        Args:
+            query: Optional user query for GraphRAG retrieval.
+            retrieval_mode: Retrieval strategy — ``"auto"``, ``"local"``,
+                ``"global"``, or ``"hybrid"``.
+
+        Returns:
+            Formatted context prompt string within token limit.
+
+        **Validates: Requirements 2.7, 2.8, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 7.4**
         """
         # Retrieve all context data
         relationship_types = await self.get_relationship_types()
@@ -444,6 +526,17 @@ class KnowledgeStore:
         risks_text = self.format_risks(risks)
         mind_nodes_text = self.format_mind_nodes(mind_nodes)
         skills_text = self.format_skills(skills)
+
+        # --- GraphRAG retrieval (only when enabled + query provided) ---
+        graphrag_text = ""
+        if settings.graphrag_enabled and query:
+            try:
+                embedding_service = EmbeddingService(settings)
+                retriever = GraphRAGRetriever(settings, embedding_service)
+                retrieval_result = await retriever.retrieve(query, retrieval_mode)
+                graphrag_text = self._format_retrieval_results(retrieval_result)
+            except Exception as e:
+                logger.warning("GraphRAG retrieval failed, falling back to base context: %s", e)
 
         # Combine into structured prompt
         sections = [
@@ -480,6 +573,13 @@ class KnowledgeStore:
             sections.append("")
             sections.append(skills_text)
 
+        # Append GraphRAG section if results are non-empty
+        if graphrag_text:
+            sections.append("")
+            sections.append("## Knowledge Base Context")
+            sections.append("")
+            sections.append(graphrag_text)
+
         full_prompt = "\n".join(sections)
 
         # Check token count and truncate if necessary
@@ -489,8 +589,9 @@ class KnowledgeStore:
         if token_count <= max_tokens:
             return full_prompt
 
-        # If over limit, truncate risks section (most variable content)
-        # Keep schema info as it's essential
+        # If over limit, truncate lower-priority content.
+        # Priority: schema > GraphRAG > skills > risks
+        # Build base prompt without variable sections first.
         schema_sections = [
             "# Project Context",
             "",
@@ -507,19 +608,37 @@ class KnowledgeStore:
         schema_text = "\n".join(schema_sections)
         schema_tokens = self._estimate_token_count(schema_text)
 
-        # Calculate remaining tokens for risks
+        # Calculate remaining tokens for risks + GraphRAG
         remaining_tokens = max_tokens - schema_tokens
 
         if remaining_tokens <= 0:
             # Schema alone exceeds limit, return just schema
             return schema_text + "\n(Risk data omitted due to token limit)"
 
+        # If we have GraphRAG text, allocate budget between risks and GraphRAG
+        if graphrag_text:
+            graphrag_tokens = self._estimate_token_count(graphrag_text)
+            # Give GraphRAG up to half the remaining budget, risks get the rest
+            graphrag_budget = min(graphrag_tokens, remaining_tokens // 2)
+            risk_budget = remaining_tokens - graphrag_budget
+
+            # Truncate GraphRAG if needed
+            if graphrag_tokens > graphrag_budget:
+                truncation_suffix = "\n... (GraphRAG context truncated)"
+                suffix_tokens = self._estimate_token_count(truncation_suffix)
+                max_graphrag_words = int((graphrag_budget - suffix_tokens) * 0.75)
+                graphrag_words = graphrag_text.split()
+                if len(graphrag_words) > max_graphrag_words and max_graphrag_words > 0:
+                    graphrag_text = " ".join(graphrag_words[:max_graphrag_words]) + truncation_suffix
+                elif max_graphrag_words <= 0:
+                    graphrag_text = ""
+        else:
+            risk_budget = remaining_tokens
+
         # Truncate risks to fit remaining tokens
-        # Approximate: remaining_tokens * 0.75 = word count
-        # Reserve some words for the truncation suffix
         truncation_suffix = "... (truncated)"
         suffix_tokens = self._estimate_token_count(truncation_suffix)
-        max_risk_words = int((remaining_tokens - suffix_tokens) * 0.75)
+        max_risk_words = int((risk_budget - suffix_tokens) * 0.75)
         risk_words = risks_text.split()
 
         if len(risk_words) <= max_risk_words:
@@ -527,4 +646,9 @@ class KnowledgeStore:
         else:
             truncated_risks = " ".join(risk_words[:max_risk_words]) + " " + truncation_suffix
 
-        return schema_text + "\n" + truncated_risks
+        result = schema_text + "\n" + truncated_risks
+
+        if graphrag_text:
+            result += "\n\n## Knowledge Base Context\n\n" + graphrag_text
+
+        return result

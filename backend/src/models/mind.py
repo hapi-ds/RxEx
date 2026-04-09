@@ -70,6 +70,14 @@ class BaseMind(BaseNode):
         default=None, description="Optional list of tags for categorization"
     )
 
+    # GraphRAG properties (written by embedding and community detection services)
+    embedding: list[float] | None = Field(
+        default=None, description="Vector embedding for semantic search", exclude=True
+    )
+    community_id: int | None = Field(
+        default=None, description="Community assignment from detection algorithm", exclude=True
+    )
+
     @field_serializer('uuid')
     def serialize_uuid(self, uuid: UUID, _info) -> str:
         """Serialize UUID to string for Neo4j compatibility."""

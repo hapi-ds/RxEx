@@ -26,6 +26,7 @@ export interface ChatStreamEvent {
   tool_name?: string;
   arguments?: Record<string, unknown>;
   error_message?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**

@@ -8,6 +8,7 @@ import { config } from '../config';
 import type { LoginCredentials, Token, PostCreate, PostUpdate, Post, Relationship, RelationshipType, SaveFileData, ReadResponse, ClearResponse, Skill, SkillDetail, SkillCreate, SkillUpdate, ScheduleHistory, ScheduledTaskEnriched, ScheduleCreateResponse } from '../types';
 import type { Mind } from '../types/generated';
 import type { ChatMessage, ChatStreamEvent, ChatConfig } from '../types/chat';
+import type { KnowledgeBaseStatus, OperationResponse, SemanticSearchResponse } from '../types/graphrag';
 
 /**
  * Create axios instance with base configuration
@@ -327,7 +328,8 @@ export const chatAPI = {
    */
   sendMessage: async (
     content: string,
-    conversationHistory: ChatMessage[]
+    conversationHistory: ChatMessage[],
+    retrievalMode?: string
   ): Promise<ReadableStream<ChatStreamEvent>> => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -343,6 +345,7 @@ export const chatAPI = {
       body: JSON.stringify({
         content,
         conversation_history: conversationHistory,
+        ...(retrievalMode && { retrieval_mode: retrievalMode }),
       }),
     });
 
@@ -542,6 +545,43 @@ export const fmeaAPI = {
       `/api/v1/fmea/report/${fmeaType}`,
       { responseType: 'blob' }
     );
+    return response.data;
+  },
+};
+
+/**
+ * GraphRAG Knowledge Base API methods
+ */
+export const graphragAPI = {
+  /** Get knowledge base status */
+  getStatus: async (): Promise<KnowledgeBaseStatus> => {
+    const response = await api.get<KnowledgeBaseStatus>('/api/v1/graphrag/status');
+    return response.data;
+  },
+
+  /** Trigger bulk embedding generation */
+  generateEmbeddings: async (): Promise<OperationResponse> => {
+    const response = await api.post<OperationResponse>('/api/v1/graphrag/embeddings/generate');
+    return response.data;
+  },
+
+  /** Trigger community detection and summary generation */
+  detectCommunities: async (): Promise<OperationResponse> => {
+    const response = await api.post<OperationResponse>('/api/v1/graphrag/communities/detect');
+    return response.data;
+  },
+
+  /** Perform standalone semantic search */
+  semanticSearch: async (
+    query: string,
+    topK?: number,
+    threshold?: number
+  ): Promise<SemanticSearchResponse> => {
+    const response = await api.post<SemanticSearchResponse>('/api/v1/graphrag/search', {
+      query,
+      ...(topK !== undefined && { top_k: topK }),
+      ...(threshold !== undefined && { threshold }),
+    });
     return response.data;
   },
 };

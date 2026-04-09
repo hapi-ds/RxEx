@@ -231,6 +231,7 @@ class AIChatService:
         user_message: str,
         conversation_history: list[dict[str, Any]],
         user_email: str,
+        retrieval_mode: str | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """
         Send message to AI provider and yield streaming events.
@@ -271,7 +272,10 @@ class AIChatService:
 
             logger.debug(f"Generating context prompt from knowledge store")
             # Get context prompt from knowledge store
-            context_prompt = await self.knowledge_store.generate_context_prompt()
+            context_prompt = await self.knowledge_store.generate_context_prompt(
+                query=user_message,
+                retrieval_mode=retrieval_mode or "auto",
+            )
             logger.debug(f"Context prompt generated (length: {len(context_prompt)})")
 
             logger.debug(f"Building messages array with {len(user_message)} char message")

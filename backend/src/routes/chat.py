@@ -45,6 +45,7 @@ async def stream_chat_response(
     user_message: str,
     conversation_history: list[dict],
     user_email: str,
+    retrieval_mode: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat response as Server-Sent Events.
@@ -54,6 +55,7 @@ async def stream_chat_response(
         user_message: User's message content
         conversation_history: Previous conversation messages
         user_email: Email of the authenticated user
+        retrieval_mode: Optional GraphRAG retrieval mode (local/global/hybrid/auto)
 
     Yields:
         SSE-formatted strings
@@ -63,6 +65,7 @@ async def stream_chat_response(
             user_message=user_message,
             conversation_history=conversation_history,
             user_email=user_email,
+            retrieval_mode=retrieval_mode,
         ):
             yield await format_sse_event(event)
     except Exception as e:
@@ -151,6 +154,7 @@ async def send_chat_message(
             user_message=request.content,
             conversation_history=conversation_history,
             user_email=current_user.email,
+            retrieval_mode=request.retrieval_mode,
         ),
         media_type="text/event-stream",
     )

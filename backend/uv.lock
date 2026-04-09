@@ -311,6 +311,7 @@ dependencies = [
     { name = "httpx" },
     { name = "neo4j" },
     { name = "neontology" },
+    { name = "networkx" },
     { name = "openpyxl" },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
@@ -337,6 +338,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "neo4j", specifier = ">=5.28.2" },
     { name = "neontology", specifier = ">=2.1.0" },
+    { name = "networkx", specifier = ">=3.6.1" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.11.7" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
@@ -515,6 +517,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6c/c1/a9439cda918f44c3dc459ad737685cb3fac4db7de3414ad8fb67fa4f659a/neontology-2.2.2.tar.gz", hash = "sha256:4d763e669b58be68bc39a7d7c4e83d4f0279e7a22cf33567cccc42dcadbd68a2", size = 51055, upload-time = "2025-08-30T10:48:27.42Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/07/eb/e539f0c519ba5fea52071a445f069ed8ffc4740c135a078eeddc07087e87/neontology-2.2.2-py3-none-any.whl", hash = "sha256:42788326c40ee5e818208a642071655fcb57a7b522d640d4f66e6db852411337", size = 45590, upload-time = "2025-08-30T10:48:26.007Z" },
+]
+
+[[package]]
+name = "networkx"
+version = "3.6.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/51/63fe664f3908c97be9d2e4f1158eb633317598cfa6e1fc14af5383f17512/networkx-3.6.1.tar.gz", hash = "sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509", size = 2517025, upload-time = "2025-12-08T17:02:39.908Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/c9/b2622292ea83fbb4ec318f5b9ab867d0a28ab43c5717bb85b0a5f6b3b0a4/networkx-3.6.1-py3-none-any.whl", hash = "sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762", size = 2068504, upload-time = "2025-12-08T17:02:38.159Z" },
 ]
 
 [[package]]

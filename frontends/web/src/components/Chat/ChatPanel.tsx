@@ -12,8 +12,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { chatAPI, mindsAPI, relationshipsAPI } from '../../services/api';
+import { chatAPI, graphragAPI, mindsAPI, relationshipsAPI } from '../../services/api';
 import type { ChatMessage as ChatMessageType, ChatStreamEvent, ToolCall, SuggestionLogEntry, ToolExecutionResult } from '../../types/chat';
+import type { RetrievalMode } from '../../types/graphrag';
 import type { Mind } from '../../types/generated';
 import { ChatMessage } from './ChatMessage';
 import { ConfirmToolCallDialog } from './ConfirmToolCallDialog';
@@ -29,20 +30,54 @@ interface ChatPanelState {
   isAutoAccept: boolean;
 }
 
+const CHAT_HISTORY_KEY = 'rxd3-chat-history';
+
 export function ChatPanel() {
   const { logout } = useAuth();
-  const [state, setState] = useState<ChatPanelState>({
-    messages: [],
-    inputValue: '',
-    isLoading: false,
-    error: null,
-    pendingToolCalls: [],
-    suggestionLog: [],
-    isAutoAccept: false,
+  const [state, setState] = useState<ChatPanelState>(() => {
+    let initialMessages: ChatMessageType[] = [];
+    try {
+      const stored = localStorage.getItem(CHAT_HISTORY_KEY);
+      if (stored) {
+        initialMessages = JSON.parse(stored);
+      }
+    } catch {
+      localStorage.removeItem(CHAT_HISTORY_KEY);
+    }
+    return {
+      messages: initialMessages,
+      inputValue: '',
+      isLoading: false,
+      error: null,
+      pendingToolCalls: [],
+      suggestionLog: [],
+      isAutoAccept: false,
+    };
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<number | null>(null);
+
+  // GraphRAG retrieval mode state (separate from main state to minimize changes)
+  const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>('auto');
+  const [graphragEnabled, setGraphragEnabled] = useState<boolean>(false);
+  const [activeRetrievalMode, setActiveRetrievalMode] = useState<string | null>(null);
+
+  // Check if GraphRAG is enabled on mount
+  useEffect(() => {
+    graphragAPI.getStatus()
+      .then(status => setGraphragEnabled(status.graphrag_enabled))
+      .catch(() => setGraphragEnabled(false));
+  }, []);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(state.messages));
+    } catch {
+      // Silently fail if localStorage is full or unavailable
+    }
+  }, [state.messages]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -91,7 +126,7 @@ export function ChatPanel() {
 
     try {
       // Call chat API with streaming
-      const stream = await chatAPI.sendMessage(content, state.messages);
+      const stream = await chatAPI.sendMessage(content, state.messages, retrievalMode);
       const reader = stream.getReader();
 
       // Initialize assistant message
@@ -124,6 +159,9 @@ export function ChatPanel() {
                     : msg
                 ),
               }));
+            }
+            if (event.metadata?.retrieval_mode) {
+              setActiveRetrievalMode(event.metadata.retrieval_mode as string);
             }
             break;
 
@@ -162,6 +200,9 @@ export function ChatPanel() {
             return;
 
           case 'done':
+            if (event.metadata?.retrieval_mode) {
+              setActiveRetrievalMode(event.metadata.retrieval_mode as string);
+            }
             setState(prev => ({
               ...prev,
               isLoading: false,
@@ -215,7 +256,7 @@ export function ChatPanel() {
         messages: [...prev.messages, errorMsg],
       }));
     }
-  }, [state.inputValue, state.isLoading, state.messages, logout]);
+  }, [state.inputValue, state.isLoading, state.messages, retrievalMode, logout]);
 
   // Execute a single tool call (used by confirm and confirm-all)
   const executeToolCall = useCallback(async (toolCall: ToolCall): Promise<ToolExecutionResult> => {
@@ -451,6 +492,12 @@ export function ChatPanel() {
     }));
   }, [state.pendingToolCalls]);
 
+  // Clear conversation history
+  const handleClearHistory = useCallback(() => {
+    localStorage.removeItem(CHAT_HISTORY_KEY);
+    setState(prev => ({ ...prev, messages: [] }));
+  }, []);
+
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setState(prev => ({
@@ -534,6 +581,33 @@ export function ChatPanel() {
             />
             <span>Auto-Accept Generated Nodes & Continue</span>
           </label>
+          {graphragEnabled && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.85rem', color: '#64748b' }}>
+              <span>Retrieval:</span>
+              <select
+                value={retrievalMode}
+                onChange={(e) => setRetrievalMode(e.target.value as RetrievalMode)}
+                style={{ fontSize: '0.85rem', padding: '2px 4px' }}
+              >
+                <option value="auto">Auto</option>
+                <option value="local">Local</option>
+                <option value="global">Global</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+              {activeRetrievalMode && (
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                  (active: {activeRetrievalMode})
+                </span>
+              )}
+            </label>
+          )}
+          <button
+            className="chat-panel__clear-history"
+            onClick={handleClearHistory}
+            style={{ fontSize: '0.85rem', padding: '2px 8px', color: '#64748b', background: 'none', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            Clear History
+          </button>
         </div>
         <textarea
           className="chat-panel__input"

@@ -184,3 +184,161 @@ def test_log_backup_count_validation():
     with pytest.raises(ValidationError) as exc_info:
         Settings(log_backup_count=-1)
     assert "log_backup_count must be non-negative" in str(exc_info.value)
+
+
+# ============================================================================
+# GraphRAG and Embedding Configuration Tests
+# ============================================================================
+
+
+def test_embedding_fields_defaults():
+    """Test that embedding configuration fields exist with correct defaults."""
+    settings = Settings()
+
+    assert settings.embedding_provider == "none"
+    assert settings.embedding_api_endpoint is None
+    assert settings.embedding_api_key is None
+    assert settings.embedding_model_name is None
+    assert settings.embedding_dimensions == 1536
+
+
+def test_graphrag_fields_defaults():
+    """Test that GraphRAG configuration fields exist with correct defaults."""
+    settings = Settings()
+
+    assert settings.graphrag_enabled is False
+    assert settings.graphrag_top_k == 10
+    assert settings.graphrag_similarity_threshold == 0.7
+    assert settings.graphrag_traversal_depth == 2
+    assert settings.graphrag_max_subgraph_nodes == 50
+    assert settings.graphrag_default_mode == "auto"
+    assert settings.graphrag_community_schedule_hours == 0
+
+
+def test_embedding_provider_validation():
+    """Test that embedding_provider validates against allowed values."""
+    for provider in ["none", "openai", "lm-studio", "custom"]:
+        settings = Settings(embedding_provider=provider)
+        assert settings.embedding_provider == provider
+
+    # Case insensitive
+    settings = Settings(embedding_provider="OpenAI")
+    assert settings.embedding_provider == "openai"
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(embedding_provider="invalid")
+    assert "embedding_provider must be one of" in str(exc_info.value)
+
+
+def test_embedding_dimensions_validation():
+    """Test that embedding_dimensions must be positive."""
+    settings = Settings(embedding_dimensions=768)
+    assert settings.embedding_dimensions == 768
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(embedding_dimensions=0)
+    assert "embedding_dimensions must be positive" in str(exc_info.value)
+
+    with pytest.raises(ValidationError):
+        Settings(embedding_dimensions=-1)
+
+
+def test_graphrag_default_mode_validation():
+    """Test that graphrag_default_mode validates against allowed values."""
+    for mode in ["auto", "local", "global", "hybrid"]:
+        settings = Settings(graphrag_default_mode=mode)
+        assert settings.graphrag_default_mode == mode
+
+    # Case insensitive
+    settings = Settings(graphrag_default_mode="LOCAL")
+    assert settings.graphrag_default_mode == "local"
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(graphrag_default_mode="invalid")
+    assert "graphrag_default_mode must be one of" in str(exc_info.value)
+
+
+def test_graphrag_top_k_validation():
+    """Test that graphrag_top_k must be >= 1."""
+    settings = Settings(graphrag_top_k=1)
+    assert settings.graphrag_top_k == 1
+
+    with pytest.raises(ValidationError):
+        Settings(graphrag_top_k=0)
+
+
+def test_graphrag_similarity_threshold_validation():
+    """Test that graphrag_similarity_threshold must be between 0.0 and 1.0."""
+    settings = Settings(graphrag_similarity_threshold=0.0)
+    assert settings.graphrag_similarity_threshold == 0.0
+
+    settings = Settings(graphrag_similarity_threshold=1.0)
+    assert settings.graphrag_similarity_threshold == 1.0
+
+    with pytest.raises(ValidationError):
+        Settings(graphrag_similarity_threshold=-0.1)
+
+    with pytest.raises(ValidationError):
+        Settings(graphrag_similarity_threshold=1.1)
+
+
+def test_graphrag_traversal_depth_validation():
+    """Test that graphrag_traversal_depth must be >= 1."""
+    settings = Settings(graphrag_traversal_depth=1)
+    assert settings.graphrag_traversal_depth == 1
+
+    with pytest.raises(ValidationError):
+        Settings(graphrag_traversal_depth=0)
+
+
+def test_graphrag_max_subgraph_nodes_validation():
+    """Test that graphrag_max_subgraph_nodes must be >= 1."""
+    settings = Settings(graphrag_max_subgraph_nodes=1)
+    assert settings.graphrag_max_subgraph_nodes == 1
+
+    with pytest.raises(ValidationError):
+        Settings(graphrag_max_subgraph_nodes=0)
+
+
+def test_graphrag_community_schedule_hours_validation():
+    """Test that graphrag_community_schedule_hours must be >= 0."""
+    settings = Settings(graphrag_community_schedule_hours=0)
+    assert settings.graphrag_community_schedule_hours == 0
+
+    settings = Settings(graphrag_community_schedule_hours=24)
+    assert settings.graphrag_community_schedule_hours == 24
+
+    with pytest.raises(ValidationError):
+        Settings(graphrag_community_schedule_hours=-1)
+
+
+def test_graphrag_env_variable_loading():
+    """Test that GraphRAG settings load from environment variables."""
+    import os
+
+    os.environ['EMBEDDING_PROVIDER'] = 'lm-studio'
+    os.environ['EMBEDDING_API_ENDPOINT'] = 'http://localhost:1234/v1'
+    os.environ['EMBEDDING_MODEL_NAME'] = 'test-model'
+    os.environ['EMBEDDING_DIMENSIONS'] = '768'
+    os.environ['GRAPHRAG_ENABLED'] = 'true'
+    os.environ['GRAPHRAG_TOP_K'] = '20'
+    os.environ['GRAPHRAG_SIMILARITY_THRESHOLD'] = '0.5'
+    os.environ['GRAPHRAG_DEFAULT_MODE'] = 'local'
+
+    try:
+        settings = Settings()
+        assert settings.embedding_provider == 'lm-studio'
+        assert settings.embedding_api_endpoint == 'http://localhost:1234/v1'
+        assert settings.embedding_model_name == 'test-model'
+        assert settings.embedding_dimensions == 768
+        assert settings.graphrag_enabled is True
+        assert settings.graphrag_top_k == 20
+        assert settings.graphrag_similarity_threshold == 0.5
+        assert settings.graphrag_default_mode == 'local'
+    finally:
+        for key in [
+            'EMBEDDING_PROVIDER', 'EMBEDDING_API_ENDPOINT', 'EMBEDDING_MODEL_NAME',
+            'EMBEDDING_DIMENSIONS', 'GRAPHRAG_ENABLED', 'GRAPHRAG_TOP_K',
+            'GRAPHRAG_SIMILARITY_THRESHOLD', 'GRAPHRAG_DEFAULT_MODE',
+        ]:
+            os.environ.pop(key, None)

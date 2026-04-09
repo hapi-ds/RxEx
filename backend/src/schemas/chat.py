@@ -32,6 +32,9 @@ class ChatMessageRequest(BaseModel):
 
     content: str = Field(..., min_length=1, max_length=10000)
     conversation_history: list[ChatMessage] = Field(default_factory=list)
+    retrieval_mode: str | None = Field(
+        default=None, pattern="^(local|global|hybrid|auto)$"
+    )
 
 
 class ChatStreamEvent(BaseModel):
@@ -42,6 +45,7 @@ class ChatStreamEvent(BaseModel):
     tool_name: Optional[str] = None
     arguments: Optional[dict[str, Any]] = None
     error_message: Optional[str] = None
+    metadata: dict[str, Any] | None = None
 
 
 class ChatConfigResponse(BaseModel):

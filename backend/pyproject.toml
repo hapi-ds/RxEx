@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.28.1",
     "neo4j>=5.28.2",
     "neontology>=2.1.0",
+    "networkx>=3.6.1",
     "openpyxl>=3.1.5",
     "pydantic-settings>=2.9.1",
     "pydantic[email]>=2.11.7",

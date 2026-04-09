@@ -7,9 +7,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dataAPI, skillsAPI, mindsAPI, fmeaAPI } from '../services/api';
+import axios from 'axios';
+import { dataAPI, skillsAPI, mindsAPI, fmeaAPI, graphragAPI } from '../services/api';
 import type { SaveFileData } from '../types';
 import type { Mind } from '../types/generated';
+import type { KnowledgeBaseStatus } from '../types/graphrag';
 import './Dashboard.css';
 
 export function Dashboard(): JSX.Element {
@@ -34,6 +36,13 @@ export function Dashboard(): JSX.Element {
   // FMEA card state
   const [fmeaLoading, setFmeaLoading] = useState<string | null>(null);
   const [fmeaError, setFmeaError] = useState<string | null>(null);
+
+  // Knowledge Base card state
+  const [kbStatus, setKbStatus] = useState<KnowledgeBaseStatus | null>(null);
+  const [kbError, setKbError] = useState<string | null>(null);
+  const [embeddingLoading, setEmbeddingLoading] = useState(false);
+  const [communityLoading, setCommunityLoading] = useState(false);
+  const [operationMessage, setOperationMessage] = useState<string | null>(null);
 
   const loadSkillCount = useCallback(async (): Promise<void> => {
     try {
@@ -68,6 +77,62 @@ export function Dashboard(): JSX.Element {
     loadSkillCount();
     loadProjects();
   }, [loadSkillCount, loadProjects]);
+
+  // Fetch Knowledge Base status on mount
+  useEffect(() => {
+    const loadKbStatus = async (): Promise<void> => {
+      try {
+        const status = await graphragAPI.getStatus();
+        setKbStatus(status);
+        setKbError(null);
+      } catch {
+        setKbError('Failed to load knowledge base status');
+      }
+    };
+    loadKbStatus();
+  }, []);
+
+  const handleGenerateEmbeddings = async (): Promise<void> => {
+    setEmbeddingLoading(true);
+    setOperationMessage(null);
+    setKbError(null);
+    try {
+      const result = await graphragAPI.generateEmbeddings();
+      setOperationMessage(result.message);
+      // Refresh status after operation
+      const status = await graphragAPI.getStatus();
+      setKbStatus(status);
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        setOperationMessage('Operation already in progress');
+      } else {
+        setKbError(err instanceof Error ? err.message : 'Failed to generate embeddings');
+      }
+    } finally {
+      setEmbeddingLoading(false);
+    }
+  };
+
+  const handleDetectCommunities = async (): Promise<void> => {
+    setCommunityLoading(true);
+    setOperationMessage(null);
+    setKbError(null);
+    try {
+      const result = await graphragAPI.detectCommunities();
+      setOperationMessage(result.message);
+      // Refresh status after operation
+      const status = await graphragAPI.getStatus();
+      setKbStatus(status);
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        setOperationMessage('Operation already in progress');
+      } else {
+        setKbError(err instanceof Error ? err.message : 'Failed to detect communities');
+      }
+    } finally {
+      setCommunityLoading(false);
+    }
+  };
 
   const handleSave = async (): Promise<void> => {
     setSaveLoading(true);
@@ -320,6 +385,41 @@ export function Dashboard(): JSX.Element {
             </button>
           </div>
           {fmeaError && <p className="card-error">{fmeaError}</p>}
+        </section>
+
+        {/* Knowledge Base card */}
+        <section className="dashboard-card">
+          <h3>Knowledge Base</h3>
+          <p>GraphRAG knowledge base status and management.</p>
+          {kbStatus && !kbStatus.graphrag_enabled ? (
+            <p className="card-info">GraphRAG not enabled</p>
+          ) : kbStatus ? (
+            <>
+              <p className="card-info">
+                Nodes: {kbStatus.embedded_nodes}/{kbStatus.total_nodes} embedded
+                {kbStatus.embedded_nodes === kbStatus.total_nodes && kbStatus.total_nodes > 0 && ' ✓ up to date'}
+              </p>
+              <p className="card-info">Communities: {kbStatus.community_count}</p>
+              <div className="card-actions">
+                <button
+                  onClick={handleGenerateEmbeddings}
+                  disabled={embeddingLoading || communityLoading}
+                  className="btn-primary"
+                >
+                  {embeddingLoading ? 'Generating…' : 'Generate Embeddings'}
+                </button>
+                <button
+                  onClick={handleDetectCommunities}
+                  disabled={embeddingLoading || communityLoading}
+                  className="btn-primary"
+                >
+                  {communityLoading ? 'Detecting…' : 'Detect Communities'}
+                </button>
+              </div>
+            </>
+          ) : null}
+          {operationMessage && <p className="card-success">{operationMessage}</p>}
+          {kbError && <p className="card-error">{kbError}</p>}
         </section>
       </div>
     </div>
